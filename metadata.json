@@ -1,0 +1,5 @@
+{
+  "name": "Azure Fabric Architecture Visualizer",
+  "description": "Een interactieve architectuur-visualisator voor de migratie van SAP BW naar Microsoft Azure & Fabric, inclusief Agentic AI en Data Science lagen, volledig afgestemd op Nederlandse richtlijnen.",
+  "requestFramePermissions": []
+}
