@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { ArchitectureNode, ChatMessage, ComplianceRule } from './types';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { ArchitectureNode, ChatMessage } from './types';
 import html2canvas from 'html2canvas';
 import { GoogleGenAI } from "@google/genai";
 
@@ -111,44 +111,30 @@ const TimelineStep: React.FC<{
 
 export default function App() {
   const [activeStepId, setActiveStepId] = useState<number | null>(1);
-  const [activeNodeId, setActiveNodeId] = useState<string | null>('sap-bw');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Gebruik een ref om de chat sessie vast te houden
+  const chatRef = useRef<any>(null);
 
-  const chatSession = useMemo(() => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return ai.chats.create({
+  const getChat = () => {
+    if (chatRef.current) return chatRef.current;
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    chatRef.current = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: {
-        systemInstruction: `
-          Je bent een Senior Solution Architect gespecialiseerd in het "Lestel domein" en data-transities van SAP BW naar Microsoft Azure Fabric.
-          Je helpt het team bij het realiseren van de "Lestel Fabric Blueprint".
-          
-          Focusgebieden:
-          1. Transitie van SAP BW legacy (Cubes/ABAP) naar OneLake/Lakehouse.
-          2. Architectuur lagen: Bronze (landing), Silver (modeling), Gold (serving).
-          3. Compliance: BIO (Basisbeveiliging Overheid) en AVG.
-          4. Innovatie: PowerBI integratie en Agentic AI scenario's.
-
-          Je antwoorden moeten professioneel, concreet en behulpzaam zijn voor BI-specialisten en architecten.
-        `,
+        systemInstruction: `Je bent een Senior Solution Architect voor het Lestel domein. 
+        Je helpt bij de transitie van SAP BW naar Azure Fabric. 
+        Focus op: Bronze/Silver/Gold layers, OneLake, BIO-richtlijnen en Agentic AI. 
+        Geef beknopte, professionele antwoorden in het Nederlands.`,
       },
     });
-  }, []);
-
-  const nodes: ArchitectureNode[] = [
-    { id: 'sap-bw', label: 'BW Sources', category: 'Source', description: 'Basis voor analyse.', icon: 'fa-database', color: 'bg-blue-600' },
-    { id: 'fabric-df', label: 'Ontsluiting', category: 'Ingestion', description: 'Verplaatsen naar Azure.', icon: 'fa-shuffle', color: 'bg-blue-600' },
-    { id: 'fabric-onelake', label: 'Lakehouse', category: 'Storage', description: 'OneLake Landing.', icon: 'fa-cloud', color: 'bg-blue-400' },
-    { id: 'fabric-modeling', label: 'Modellering', category: 'Processing', description: 'Silver Layer.', icon: 'fa-sitemap', color: 'bg-green-600' },
-    { id: 'golden-layer', label: 'Golden Layer', category: 'Serving', description: 'Gezuiverde dataset.', icon: 'fa-star', color: 'bg-yellow-500' },
-    { id: 'powerbi', label: 'Power BI', category: 'Serving', description: 'Business Intelligence.', icon: 'fa-chart-pie', color: 'bg-orange-500' },
-    { id: 'agentic-ai', label: 'Agentic AI', category: 'AI', description: 'Slimme automatisering.', icon: 'fa-robot', color: 'bg-orange-600' },
-    { id: 'purview', label: 'Purview', category: 'Governance', description: 'Data Governance.', icon: 'fa-shield-halved', color: 'bg-slate-800' },
-  ];
+    return chatRef.current;
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -165,12 +151,16 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      const result = await chatSession.sendMessage({ message: userMsg.content });
-      const responseText = result.text;
-      setChatHistory(prev => [...prev, { role: 'model', content: responseText || "Geen antwoord van AI." }]);
-    } catch (error) {
+      const chat = getChat();
+      const result = await chat.sendMessage({ message: userMsg.content });
+      setChatHistory(prev => [...prev, { role: 'model', content: result.text || "Geen reactie ontvangen." }]);
+    } catch (error: any) {
       console.error("Gemini Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Fout bij verbinden met Gemini. Controleer de API Key in Vercel." }]);
+      let errorMsg = "Er ging iets mis bij de AI-assistent.";
+      if (error.message?.includes("API_KEY")) {
+        errorMsg = "De API Key is niet goed ingesteld in Vercel.";
+      }
+      setChatHistory(prev => [...prev, { role: 'model', content: errorMsg }]);
     } finally {
       setIsTyping(false);
     }
@@ -317,7 +307,7 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="text-[10px] text-slate-400 px-4">Architect denkt na...</div>}
+              {isTyping && <div className="text-[10px] text-slate-400 px-4 animate-pulse">Architect denkt na...</div>}
             </div>
 
             <div className="p-6 bg-white border-t border-slate-100">
