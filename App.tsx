@@ -86,7 +86,7 @@ const SevenStepTimeline: React.FC = () => (
       <TimelineStep 
         number={1} 
         title="BW Bronnen - Analyse" 
-        owner="Technisch Team"
+        owner="Technisch team"
         icon="fa-search"
         colorClass="border-blue-100 bg-blue-600"
         description="Alle bestaande BW-bronnen worden in kaart gebracht. Analyse van technische structuur en businesslogica om kwaliteit, volledigheid en geschiktheid te bepalen."
@@ -108,32 +108,32 @@ const SevenStepTimeline: React.FC = () => (
     <TimelineStep 
       number={3} 
       title="Data Modellering op Azure" 
-      owner="Engineers & Architecten"
+      owner="Data engineers bouwen, wij ontwerpen"
       icon="fa-sitemap"
       colorClass="border-green-100 bg-green-600"
-      description="Domeingerichte Data Marts ontwerpen die aansluiten op de businessbehoefte. Voorbereiding voor de Golden Layer via gestandaardiseerde modellen."
-      milestones={["Datakwaliteit", "Standaardisatie", "Bron-naar-Model mapping"]}
+      description="Domeingerichte modellen maken, zoals Data Marts. Gezamenlijk ontwerp waarbij data engineers de modellen technisch bouwen in de golden layer voorbereiding."
+      milestones={["Datakwaliteit", "Standaardisatie", "Mapping brondata"]}
     />
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* 5. Bouwen Golden Layer */}
-      <TimelineStep 
-        number={5} 
-        title="Bouwen Golden Layer" 
-        owner="Data Engineers"
-        icon="fa-industry"
-        colorClass="border-yellow-100 bg-yellow-500"
-        description="ETL/Pipelines in Fabric of Synapse die de gemodelleerde data transformeren naar een gezuiverde eindlaag."
-        milestones={["Pipelines", "ETL Processen", "Logging & Monitoring"]}
-      />
-      {/* 4. Golden Layer Definitie */}
+      {/* 4. Bouwen Golden Layer (Technisch proces nu eerst) */}
       <TimelineStep 
         number={4} 
-        title="Golden Layer - Bron van Waarheid" 
-        owner="Gezamenlijk"
+        title="Bouwen van de Golden Layer" 
+        owner="Data engineers"
+        icon="fa-industry"
+        colorClass="border-yellow-100 bg-yellow-500"
+        description="Gestructureerde ETL-processen/pipelines in Fabric of Synapse die data uit de gemodelleerde laag transformeren naar een consistente eindlaag."
+        milestones={["Governance", "Datakwaliteit", "Monitoring & Logging"]}
+      />
+      {/* 5. Golden Layer Definitie (Resultaat nu stap 5) */}
+      <TimelineStep 
+        number={5} 
+        title="Golden Layer - Definitieve Dataset" 
+        owner="Allen betrokken"
         icon="fa-trophy"
         colorClass="border-yellow-100 bg-yellow-500"
-        description="De gezuiverde, beheerde eindlaag. Het vertrekpunt voor alle analyses, PowerBI en AI-agents."
+        description="De gezuiverde, beheerde eindlaag. Het eindpunt van modellering en het vertrekpunt voor alle analyses, PowerBI en AI-agents."
         milestones={["Governance", "Versiebeheer", "Traceerbaarheid"]}
       />
     </div>
@@ -142,11 +142,11 @@ const SevenStepTimeline: React.FC = () => (
     <TimelineStep 
       number={6} 
       title="Gebruik: PowerBI & Agentic AI" 
-      owner="BI & AI Teams"
+      owner="BI-team / AI-team"
       icon="fa-robot"
       colorClass="border-orange-100 bg-orange-600"
-      description="Exploratory analysis en rapportages. Agentic AI voor geautomatiseerde beslissingen en data-interactie via POC's."
-      milestones={["PowerBI Dashboards", "AI Agents POC", "Feedback Loops"]}
+      description="PowerBI voor visualisaties en Agentic AI voor exploratory analysis en geautomatiseerde beslissingen. POC's voor AI verkenning."
+      milestones={["Feedback loops", "AI-keuzes", "Dataverrijking"]}
     />
 
     {/* 7. Koppelmomenten Overlay */}
@@ -216,10 +216,10 @@ export default function App() {
     { id: 'fabric-df', label: 'Ontsluiting', category: 'Ingestion', description: 'Verplaatsen van data naar Azure.', icon: 'fa-shuffle', color: 'bg-blue-600' },
     { id: 'fabric-onelake', label: 'Lakehouse', category: 'Storage', description: 'Data Landing & Storage.', icon: 'fa-cloud', color: 'bg-blue-400' },
     { id: 'fabric-modeling', label: 'Modellering', category: 'Processing', description: 'Opzet van Data Marts.', icon: 'fa-sitemap', color: 'bg-green-600' },
-    { id: 'golden-layer', label: 'Golden Layer', category: 'Serving', description: 'Gezuiverde eindlaag.', icon: 'fa-star', color: 'bg-yellow-500' },
+    { id: 'golden-layer-process', label: 'Bouw Proces', category: 'Processing', description: 'ETL Pipelines voor de Golden Layer.', icon: 'fa-gears', color: 'bg-yellow-600' },
+    { id: 'golden-layer', label: 'Golden Layer', category: 'Serving', description: 'De definitieve dataset.', icon: 'fa-star', color: 'bg-yellow-500' },
     { id: 'powerbi', label: 'Power BI', category: 'Serving', description: 'Rapporten & Visualisaties.', icon: 'fa-chart-pie', color: 'bg-orange-500' },
     { id: 'agentic-ai', label: 'Agentic AI', category: 'AI', description: 'Automatisering & POCs.', icon: 'fa-robot', color: 'bg-orange-600' },
-    { id: 'purview', label: 'Purview', category: 'Governance', description: 'Governance & Auditing.', icon: 'fa-fingerprint', color: 'bg-indigo-600' },
   ];
 
   const activeNode = nodes.find(n => n.id === activeNodeId);
@@ -252,12 +252,12 @@ export default function App() {
           1. BW Analyse (Blauw)
           2. Ontsluiten naar Azure (Blauw)
           3. Modellering (Groen)
-          4. Golden Layer Definitie (Geel)
-          5. Bouwen Golden Layer Pipelines (Geel/Groen)
+          4. Bouwen van de Golden Layer (Geel) - ETL/Pipelines
+          5. Golden Layer Definitieve Dataset (Geel) - Resultaat
           6. Gebruik in PowerBI & Agentic AI (Oranje)
           7. Koppelmomenten (Governance/Security/Kwaliteit)
           
-          Geef specifiek advies over de 'Agentic AI' interactie met de 'Golden Layer'.`,
+          Focus op het feit dat Stap 4 het proces is en Stap 5 het resultaat.`,
         },
       });
 
@@ -282,7 +282,7 @@ export default function App() {
           <SevenStepTimeline />
 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Componenten Detail</h3>
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Architectuur Componenten</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
               {nodes.map(node => (
                 <NodeCard key={node.id} node={node} isActive={activeNodeId === node.id} onClick={() => setActiveNodeId(node.id)} />
@@ -298,7 +298,7 @@ export default function App() {
                   Focus: {activeNode?.label}
                 </h4>
                 <p className="text-gray-600 text-xs leading-relaxed mb-6">
-                  {activeNode?.description} Dit component speelt een centrale rol in de overgang tussen de verschillende processtappen.
+                  {activeNode?.description} In de transitie van BW naar Azure is dit een essentieel onderdeel van het Lestel domein ecosysteem.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -331,7 +331,7 @@ export default function App() {
                   </div>
                   <h4 className="font-bold text-slate-800 mb-2">Hulp bij de 7 stappen?</h4>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Stel vragen over de specifieke koppelmomenten of de inrichting van de Agentic AI POC's.
+                    Stel vragen over het bouwproces van de Golden Layer (Stap 4) of de definitieve ontsluiting (Stap 5).
                   </p>
                 </div>
               )}
@@ -344,7 +344,7 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="text-[10px] text-gray-400 animate-pulse flex gap-1"><i className="fas fa-circle text-[4px] mt-1.5"></i> AI denkt na...</div>}
+              {isTyping && <div className="text-[10px] text-gray-400 animate-pulse flex gap-1 p-4"><i className="fas fa-circle text-[4px] mt-1.5"></i> AI denkt na...</div>}
             </div>
 
             <div className="p-6 bg-white border-t border-slate-100">
