@@ -1,25 +1,8 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { ArchitectureNode, ChatMessage, ComplianceRule } from './types';
 import html2canvas from 'html2canvas';
-
-// --- Lokale Kennissysteem Logica (Vervangt de API) ---
-const getAssistantResponse = (input: string): string => {
-  const lowInput = input.toLowerCase();
-  if (lowInput.includes('stap 1') || lowInput.includes('bron')) {
-    return "Bij Stap 1 (BW Bronnen) richten we ons op de inventarisatie van Cube-definities en ABAP-logica. Het Technisch team voert hier de regie om te bepalen wat 'cloud-ready' is.";
-  }
-  if (lowInput.includes('golden layer') || lowInput.includes('stap 5')) {
-    return "De Golden Layer is onze 'Single Source of Truth'. Hier ontsluiten we de definitieve datasets voor PowerBI en AI-toepassingen. Het is cruciaal dat hier de data-lineage volledig transparant is.";
-  }
-  if (lowInput.includes('ai') || lowInput.includes('agentic')) {
-    return "Agentic AI binnen het Lestel domein wordt ingezet op de Golden Layer. We gebruiken POC's om te verkennen hoe we complexe juridische of procesmatige vragen kunnen automatiseren.";
-  }
-  if (lowInput.includes('governance') || lowInput.includes('avg')) {
-    return "Governance wordt gewaarborgd door Microsoft Purview en strikte NL Data Residency in de West Europe regio. Stap 7 (Koppelmomenten) bevat alle security-checks.";
-  }
-  return "Interessante vraag! Binnen de Lestel Fabric architectuur focussen we op een soepele transitie van BW naar Azure. Kan ik je specifiek helpen met een van de 7 stappen of de koppelmomenten?";
-};
+import { GoogleGenAI } from "@google/genai";
 
 // --- Components ---
 
@@ -40,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Static Deploy Mode</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini AI Powered</span>
       </div>
       <button 
         onClick={onExport}
@@ -126,31 +109,6 @@ const TimelineStep: React.FC<{
   );
 };
 
-const ComplianceDashboard: React.FC = () => (
-  <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
-    <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-      <i className="fas fa-shield-alt text-green-600"></i>
-      Compliance Status
-    </h4>
-    <div className="space-y-3">
-      {[
-        { rule: ComplianceRule.BIO, icon: 'fa-building-columns' },
-        { rule: ComplianceRule.AVG, icon: 'fa-user-lock' },
-        { rule: ComplianceRule.DATA_RESIDENCY, icon: 'fa-map-location-dot' },
-        { rule: ComplianceRule.PURVIEW, icon: 'fa-eye' }
-      ].map((item) => (
-        <div key={item.rule} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-          <div className="flex items-center gap-3">
-            <i className={`fas ${item.icon} text-gray-400 text-xs`}></i>
-            <span className="text-[10px] font-bold text-gray-700">{item.rule}</span>
-          </div>
-          <span className="text-[8px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-black uppercase">Active</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
 // --- Main App ---
 
 export default function App() {
@@ -161,6 +119,35 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Initialiseer de AI Chat (Memoized om te voorkomen dat hij bij elke render herstart)
+  const chatSession = useMemo(() => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return ai.chats.create({
+      model: 'gemini-3-flash-preview',
+      config: {
+        systemInstruction: `
+          Je bent een Senior Solution Architect gespecialiseerd in het "Lestel domein" en data-transities van SAP BW naar Microsoft Azure Fabric.
+          Je helpt het team bij het realiseren van de "Lestel Fabric Blueprint".
+          
+          De blueprint bestaat uit 7 stappen:
+          1. BW Bronnen: Analyse en inventarisatie van legacy systemen (Cubes/ABAP).
+          2. Ontsluiten naar Azure: Data verplaatsen naar OneLake/Lakehouse (Bronze layer).
+          3. Data Modellering: Gezamenlijk ontwerp van Data Marts (Silver layer).
+          4. Bouwen Golden Layer: ETL pipelines en transformatie.
+          5. Golden Layer: De Single Source of Truth voor business data.
+          6. Gebruik: Rapportages in PowerBI en innovatie met Agentic AI.
+          7. Koppelmomenten: Security, Governance (Purview), BIO en AVG compliance.
+
+          Je antwoorden moeten:
+          - Professioneel, concreet en behulpzaam zijn.
+          - Rekening houden met Nederlandse overheidsrichtlijnen (BIO, AVG).
+          - Gericht zijn op technische realisatie binnen het Azure/Fabric ecosysteem.
+          - Kort en bondig zijn, tenzij om meer detail wordt gevraagd.
+        `,
+      },
+    });
+  }, []);
 
   const nodes: ArchitectureNode[] = [
     { id: 'sap-bw', label: 'BW Sources', category: 'Source', description: 'Basis voor analyse en inventarisatie.', icon: 'fa-database', color: 'bg-blue-600' },
@@ -173,28 +160,31 @@ export default function App() {
     { id: 'agentic-ai', label: 'Agentic AI', category: 'AI', description: 'Automatisering & POCs.', icon: 'fa-robot', color: 'bg-orange-600' },
   ];
 
-  const activeNode = nodes.find(n => n.id === activeNodeId);
-
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [chatHistory]);
+  }, [chatHistory, isTyping]);
 
   const handleSendMessage = async () => {
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || isTyping) return;
 
     const userMsg: ChatMessage = { role: 'user', content: userInput };
     setChatHistory(prev => [...prev, userMsg]);
     setUserInput('');
     setIsTyping(true);
 
-    // Simuleer een snelle lokale respons
-    setTimeout(() => {
-      const response = getAssistantResponse(userMsg.content);
-      setChatHistory(prev => [...prev, { role: 'model', content: response }]);
+    try {
+      const result = await chatSession.sendMessage({ message: userMsg.content });
+      const responseText = result.text;
+      
+      setChatHistory(prev => [...prev, { role: 'model', content: responseText || "Ik kon geen antwoord genereren. Probeer het opnieuw." }]);
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Er is een verbindingsfout opgetreden met de AI. Controleer of je API key correct is geconfigureerd." }]);
+    } finally {
       setIsTyping(false);
-    }, 600);
+    }
   };
 
   const handleStepClick = (stepId: number) => {
@@ -394,11 +384,11 @@ export default function App() {
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
             <div className="p-6 bg-slate-900 text-white flex items-center gap-4">
               <div className="bg-blue-600 p-3 rounded-2xl">
-                <i className="fas fa-lightbulb"></i>
+                <i className="fas fa-brain"></i>
               </div>
               <div>
-                <h3 className="font-bold text-sm">Interactieve Gids</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Lestel Domein Kennisbank</p>
+                <h3 className="font-bold text-sm">Lestel AI Expert</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Aangedreven door Gemini 1.5</p>
               </div>
             </div>
 
@@ -406,22 +396,33 @@ export default function App() {
               {chatHistory.length === 0 && (
                 <div className="text-center py-12 px-4">
                   <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
-                    <i className="fas fa-info-circle text-blue-500 text-xl"></i>
+                    <i className="fas fa-sparkles text-blue-500 text-xl"></i>
                   </div>
-                  <h4 className="font-bold text-slate-800 mb-2">Vragen over de architectuur?</h4>
-                  <p className="text-xs text-slate-500">Stel een vraag over Stap 1, de Golden Layer of Agentic AI.</p>
+                  <h4 className="font-bold text-slate-800 mb-2">Live AI Assistent</h4>
+                  <p className="text-xs text-slate-500">Stel vragen over de Lestel Fabric architectuur, compliance of de technische roadmap.</p>
                 </div>
               )}
               {chatHistory.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] p-4 rounded-3xl text-xs leading-relaxed ${
-                    msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-slate-800 rounded-tl-none'
+                    msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-slate-800 rounded-tl-none shadow-sm'
                   }`}>
                     {msg.content}
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="text-[10px] text-gray-400 animate-pulse p-4">Expert analyseert...</div>}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-200 p-4 rounded-3xl rounded-tl-none text-[10px] text-gray-400 flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></span>
+                      <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                    </div>
+                    Expert denkt na...
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-6 bg-white border-t border-slate-100">
@@ -431,8 +432,9 @@ export default function App() {
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Vraag advies..."
+                  placeholder="Vraag advies aan de architect..."
                   className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
+                  disabled={isTyping}
                 />
                 <button 
                   onClick={handleSendMessage}
@@ -442,7 +444,7 @@ export default function App() {
                   <i className="fas fa-paper-plane"></i>
                 </button>
               </div>
-              <p className="text-[9px] text-center text-slate-400 mt-4 font-black uppercase tracking-tighter">Offline Architect Mode</p>
+              <p className="text-[9px] text-center text-slate-400 mt-4 font-black uppercase tracking-tighter">Live Gemini Context Mode</p>
             </div>
           </div>
         </div>
