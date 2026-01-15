@@ -23,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Gemini AI Powered</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini 3 Pro Architecture AI</span>
       </div>
       <button 
         onClick={onExport}
@@ -37,20 +37,6 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
       </button>
     </div>
   </header>
-);
-
-const NodeCard: React.FC<{ node: ArchitectureNode; isActive: boolean; onClick: () => void }> = ({ node, isActive, onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`diagram-node cursor-pointer p-3 rounded-xl border-2 transition-all text-center ${
-      isActive ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-100' : 'border-white bg-white shadow-sm hover:border-blue-200'
-    }`}
-  >
-    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 mx-auto text-white text-sm ${node.color}`}>
-      <i className={`fas ${node.icon}`}></i>
-    </div>
-    <h3 className="font-bold text-gray-800 text-[10px] leading-tight">{node.label}</h3>
-  </div>
 );
 
 const TimelineStep: React.FC<{
@@ -117,20 +103,32 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // Gebruik een ref om de chat sessie vast te houden
   const chatRef = useRef<any>(null);
 
   const getChat = () => {
     if (chatRef.current) return chatRef.current;
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    // We gebruiken gemini-3-pro-preview voor betere architecturale ondersteuning
     chatRef.current = ai.chats.create({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       config: {
-        systemInstruction: `Je bent een Senior Solution Architect voor het Lestel domein. 
-        Je helpt bij de transitie van SAP BW naar Azure Fabric. 
-        Focus op: Bronze/Silver/Gold layers, OneLake, BIO-richtlijnen en Agentic AI. 
-        Geef beknopte, professionele antwoorden in het Nederlands.`,
+        systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect gespecialiseerd in de migratie van SAP BW naar Microsoft Azure Fabric.
+
+JOUW DOEL:
+Ondersteun het team bij technische keuzes voor het Lestel domein.
+
+JOUW EXPERTISE:
+1. SAP BW Transformatie: Kennis van ODP extractoren, ADSO's en Composite Providers. Adviseer hoe deze te ontsluiten via Azure Data Factory of Fabric Shortcuts.
+2. Fabric Medallion: Bronze (Raw Parquet), Silver (Cleaned/Star Schema), Gold (Aggregated/Business Ready).
+3. OneLake & Lakehouse: Adviseer over delta tables en V-order optimalisatie.
+4. Compliance: BIO (Basisbeveiliging Overheid) en AVG zijn heilig. Adviseer over Private Links en Data Residency in West Europe.
+5. Agentic AI: Hoe AI agents op de Gold layer kunnen acteren voor voorspellende analyses.
+
+STIJL:
+- Professioneel, behulpzaam en technisch diepgaand maar begrijpelijk.
+- Taal: Nederlands.
+- Houd antwoorden to-the-point tenzij om diepe details wordt gevraagd.`,
       },
     });
     return chatRef.current;
@@ -158,7 +156,7 @@ export default function App() {
       console.error("Gemini Error:", error);
       let errorMsg = "Er ging iets mis bij de AI-assistent.";
       if (error.message?.includes("API_KEY")) {
-        errorMsg = "De API Key is niet goed ingesteld in Vercel.";
+        errorMsg = "De API Key is niet goed ingesteld. Controleer de omgevingsvariabelen.";
       }
       setChatHistory(prev => [...prev, { role: 'model', content: errorMsg }]);
     } finally {
@@ -203,7 +201,7 @@ export default function App() {
               isActive={activeStepId === 1}
               isExporting={isExporting}
               onClick={() => setActiveStepId(1)}
-              extraInfo={<p className="text-[11px] text-gray-500">Doel: Inzicht in Cube structuren.</p>}
+              extraInfo={<p className="text-[11px] text-gray-500">Doel: Inzicht in Cube structuren en ODP extractie mogelijkheden.</p>}
             />
             <TimelineStep 
               number={2} 
@@ -216,7 +214,7 @@ export default function App() {
               isActive={activeStepId === 2}
               isExporting={isExporting}
               onClick={() => setActiveStepId(2)}
-              extraInfo={<p className="text-[11px] text-gray-500">Landing via Fabric Dataflows Gen2.</p>}
+              extraInfo={<p className="text-[11px] text-gray-500">Landing via Fabric Dataflows Gen2 of Data Factory Pipelines.</p>}
             />
           </div>
 
@@ -231,7 +229,7 @@ export default function App() {
             isActive={activeStepId === 3}
             isExporting={isExporting}
             onClick={() => setActiveStepId(3)}
-            extraInfo={<p className="text-[11px] text-gray-500">Focus op domeingericht werken.</p>}
+            extraInfo={<p className="text-[11px] text-gray-500">Opschonen en structureren conform Medallion architectuur.</p>}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -246,7 +244,7 @@ export default function App() {
               isActive={activeStepId === 4}
               isExporting={isExporting}
               onClick={() => setActiveStepId(4)}
-              extraInfo={<p className="text-[11px] text-gray-500">Transformatie naar de Golden standard.</p>}
+              extraInfo={<p className="text-[11px] text-gray-500">Transformatie naar de Golden standard (Business Ready).</p>}
             />
             <TimelineStep 
               number={5} 
@@ -259,7 +257,7 @@ export default function App() {
               isActive={activeStepId === 5}
               isExporting={isExporting}
               onClick={() => setActiveStepId(5)}
-              extraInfo={<p className="text-[11px] text-gray-500">Data klaar voor direct gebruik.</p>}
+              extraInfo={<p className="text-[11px] text-gray-500">Klaar voor consumptie en AI toepassingen.</p>}
             />
           </div>
 
@@ -269,12 +267,12 @@ export default function App() {
             owner="End Users"
             icon="fa-robot"
             colorClass="bg-orange-600"
-            description="Interactieve rapportages en AI-ondersteuning."
+            description="Interactieve rapportages en Agentic AI."
             milestones={["Dashboarding", "AI POC"]}
             isActive={activeStepId === 6}
             isExporting={isExporting}
             onClick={() => setActiveStepId(6)}
-            extraInfo={<p className="text-[11px] text-gray-500">Inzet van Agentic AI voor data-interpretatie.</p>}
+            extraInfo={<p className="text-[11px] text-gray-500">Inzet van Agentic AI voor interpretatie en actie op data.</p>}
           />
         </div>
 
@@ -282,20 +280,22 @@ export default function App() {
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
             <div className="p-6 bg-slate-900 text-white flex items-center gap-4">
               <div className="bg-blue-600 p-3 rounded-2xl">
-                <i className="fas fa-brain"></i>
+                <i className="fas fa-user-tie"></i>
               </div>
               <div>
-                <h3 className="font-bold text-sm">Lestel AI Expert</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Live Gemini Flash</p>
+                <h3 className="font-bold text-sm">Lestel Architect AI</h3>
+                <p className="text-[10px] text-slate-400 font-medium tracking-widest">GEMINI 3 PRO</p>
               </div>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
               {chatHistory.length === 0 && (
                 <div className="text-center py-12 px-4">
-                  <i className="fas fa-sparkles text-blue-500 text-3xl mb-4"></i>
-                  <h4 className="font-bold text-slate-800">Hoe kan ik helpen?</h4>
-                  <p className="text-xs text-slate-500 mt-2">Vraag naar technische details, BIO compliance of de roadmap.</p>
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-microchip text-blue-600 text-2xl"></i>
+                  </div>
+                  <h4 className="font-bold text-slate-800">Migration Assistant</h4>
+                  <p className="text-xs text-slate-500 mt-2">Stel vragen over SAP extractie, Fabric architectuur of BIO compliancy.</p>
                 </div>
               )}
               {chatHistory.map((msg, i) => (
@@ -307,7 +307,12 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="text-[10px] text-slate-400 px-4 animate-pulse">Architect denkt na...</div>}
+              {isTyping && (
+                <div className="flex gap-2 items-center text-[10px] text-slate-400 px-4">
+                  <i className="fas fa-circle-notch fa-spin"></i>
+                  <span>Architect analyseert scenario...</span>
+                </div>
+              )}
             </div>
 
             <div className="p-6 bg-white border-t border-slate-100">
@@ -317,14 +322,14 @@ export default function App() {
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Stel een vraag..."
+                  placeholder="Vraag advies over de transitie..."
                   className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12"
                   disabled={isTyping}
                 />
                 <button 
                   onClick={handleSendMessage}
                   disabled={!userInput.trim() || isTyping}
-                  className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-xl shadow-lg disabled:opacity-50"
+                  className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-xl shadow-lg disabled:opacity-50 transition-all hover:bg-blue-700 active:scale-95"
                 >
                   <i className="fas fa-paper-plane"></i>
                 </button>
