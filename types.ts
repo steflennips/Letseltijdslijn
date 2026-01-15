@@ -13,6 +13,13 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface KnowledgeDoc {
+  id: string;
+  title: string;
+  content: string;
+  isActive: boolean;
+}
+
 export enum ComplianceRule {
   BIO = 'BIO (Basisbeveiliging Overheid)',
   AVG = 'AVG / GDPR',
