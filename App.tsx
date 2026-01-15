@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ArchitectureNode, ChatMessage, ComplianceRule } from './types';
-import html2canvas from 'https://esm.sh/html2canvas@1.4.1';
+import html2canvas from 'html2canvas';
 
 // --- Lokale Kennissysteem Logica (Vervangt de API) ---
 const getAssistantResponse = (input: string): string => {
