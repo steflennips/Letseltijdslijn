@@ -6,23 +6,26 @@ import { GoogleGenAI } from "@google/genai";
 // --- Components ---
 
 const Header: React.FC = () => (
-  <header className="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center sticky top-0 z-50">
-    <div className="flex items-center gap-3">
-      <div className="bg-blue-600 p-2 rounded-lg text-white">
-        <i className="fas fa-project-diagram text-xl"></i>
+  <header className="bg-white border-b border-gray-200 py-4 px-8 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+    <div className="flex items-center gap-4">
+      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
+        <i className="fas fa-project-diagram text-2xl"></i>
       </div>
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Lestel Domein: BW naar Fabric</h1>
-        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Migratie Tijdlijn & Task-Board</p>
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Lestel <span className="text-blue-600">Fabric</span> Blueprint</h1>
+        <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">Transitie: SAP BW ➔ Microsoft Azure & Fabric</p>
       </div>
     </div>
-    <div className="flex gap-4 items-center">
-      <span className="flex items-center gap-2 text-sm text-green-600 font-medium">
-        <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
-        NL Compliance Check OK
-      </span>
-      <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm transition-colors">
-        <i className="fas fa-download mr-2"></i> Export Tijdlijn
+    <div className="flex gap-6 items-center">
+      <div className="hidden md:flex flex-col items-end">
+        <span className="flex items-center gap-2 text-xs text-green-600 font-bold">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          BIO & AVG Compliant
+        </span>
+        <span className="text-[10px] text-gray-400 font-medium">Data Residency: NL West</span>
+      </div>
+      <button className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border border-blue-100 flex items-center gap-2">
+        <i className="fas fa-file-export"></i> Export Plaat
       </button>
     </div>
   </header>
@@ -31,174 +34,168 @@ const Header: React.FC = () => (
 const NodeCard: React.FC<{ node: ArchitectureNode; isActive: boolean; onClick: () => void }> = ({ node, isActive, onClick }) => (
   <div 
     onClick={onClick}
-    className={`diagram-node cursor-pointer p-3 rounded-xl border-2 transition-all ${
+    className={`diagram-node cursor-pointer p-3 rounded-xl border-2 transition-all text-center ${
       isActive ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-100' : 'border-white bg-white shadow-sm hover:border-blue-200'
     }`}
   >
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-white text-xs ${node.color}`}>
+    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 mx-auto text-white text-sm ${node.color}`}>
       <i className={`fas ${node.icon}`}></i>
     </div>
-    <h3 className="font-bold text-gray-800 text-[11px] mb-0.5">{node.label}</h3>
+    <h3 className="font-bold text-gray-800 text-[10px] leading-tight">{node.label}</h3>
   </div>
 );
 
-const TaskList: React.FC<{ tasks: string[]; color: string }> = ({ tasks, color }) => (
-  <ul className="mt-2 space-y-1.5">
-    {tasks.map((task, i) => (
-      <li key={i} className="flex items-start gap-2 text-[10px] text-gray-600 leading-tight">
-        <i className={`fas fa-check-circle mt-0.5 ${color}`}></i>
-        <span>{task}</span>
-      </li>
-    ))}
-  </ul>
-);
-
-const UnifiedTimeline: React.FC = () => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-    <div className="flex justify-between items-center mb-10 border-b border-gray-100 pb-4">
+const TimelineStep: React.FC<{
+  number: number;
+  title: string;
+  description: string;
+  owner: string;
+  colorClass: string;
+  icon: string;
+  milestones: string[];
+}> = ({ number, title, description, owner, colorClass, icon, milestones }) => (
+  <div className={`relative p-6 rounded-[2rem] border-2 bg-white ${colorClass.split(' ')[0]} shadow-sm hover:shadow-md transition-all`}>
+    <div className="flex items-start gap-4">
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${colorClass.split(' ')[1]}`}>
+        <i className={`fas ${icon} text-xl`}></i>
+      </div>
       <div>
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <i className="fas fa-route text-blue-600"></i>
-          Migratie Tijdlijn & Team Taken
-        </h3>
-        <p className="text-xs text-gray-500">Chronologisch overzicht van acties voor beide teams</p>
-      </div>
-      <div className="flex gap-4">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-red-600">
-          <span className="w-2 h-2 bg-red-500 rounded-full"></span> TEAM INVENTARISATIE
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Stap {number}</span>
+          <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+          <span className="text-[10px] font-bold text-gray-500 uppercase">{owner}</span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600">
-          <span className="w-2 h-2 bg-blue-500 rounded-full"></span> TEAM MODELLERING
+        <h4 className="text-lg font-black text-gray-900 mb-2">{title}</h4>
+        <p className="text-xs text-gray-600 leading-relaxed mb-4">{description}</p>
+        <div className="flex flex-wrap gap-2">
+          {milestones.map((m, i) => (
+            <span key={i} className="px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500 flex items-center gap-1">
+              <i className="fas fa-link text-[8px] opacity-40"></i> {m}
+            </span>
+          ))}
         </div>
-      </div>
-    </div>
-
-    <div className="relative">
-      {/* Central Line */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-100 -ml-0.25 hidden md:block"></div>
-
-      <div className="space-y-16">
-        
-        {/* Phase 1: Voorbereiding */}
-        <div className="relative">
-          <div className="absolute left-1/2 -top-6 transform -translate-x-1/2 bg-gray-800 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter z-10 hidden md:block">Fase 1: Discovery</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl relative">
-              <h4 className="text-xs font-bold text-red-800 mb-2 flex items-center gap-2">
-                <i className="fas fa-search"></i> Inventarisatie Taken
-              </h4>
-              <TaskList color="text-red-500" tasks={[
-                "Listing InfoCubes & DSO's binnen Lestel domein",
-                "Extractie van huidige ABAP/Query logica",
-                "Identificatie van brondata eigenaars"
-              ]} />
-            </div>
-            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl">
-              <h4 className="text-xs font-bold text-blue-800 mb-2 flex items-center gap-2">
-                <i className="fas fa-layer-group"></i> Modellering Taken
-              </h4>
-              <TaskList color="text-blue-500" tasks={[
-                "Inrichting Fabric Landing Zone (OneLake)",
-                "Configuratie Workspace Security (BIO richtlijn)",
-                "Drafting Medallion Schema (Bronze/Silver)"
-              ]} />
-            </div>
-          </div>
-        </div>
-
-        {/* Phase 2: Design & Deep Dive */}
-        <div className="relative">
-          <div className="absolute left-1/2 -top-6 transform -translate-x-1/2 bg-gray-400 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter z-10 hidden md:block">Fase 2: Design</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="bg-red-50/50 border border-red-100 p-4 rounded-2xl">
-              <h4 className="text-xs font-bold text-red-800 mb-2 flex items-center gap-2">
-                <i className="fas fa-file-signature"></i> Compliance & Lineage
-              </h4>
-              <TaskList color="text-red-500" tasks={[
-                "Documentatie data-lineage voor Purview",
-                "Check AVG/GDPR bewaartermijnen per object",
-                "Functionele validatie requirements"
-              ]} />
-            </div>
-            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl">
-              <h4 className="text-xs font-bold text-blue-800 mb-2 flex items-center gap-2">
-                <i className="fas fa-vials"></i> Data Science & AI Ready
-              </h4>
-              <TaskList color="text-blue-500" tasks={[
-                "Ontwerp Gold Layer Star Schema's",
-                "Setup Spark Notebooks voor ML modellen",
-                "Voorbereiding Vector Search indexen"
-              ]} />
-            </div>
-          </div>
-        </div>
-
-        {/* Convergence: De Sync */}
-        <div className="relative flex justify-center">
-          <div className="bg-gradient-to-r from-red-600 via-purple-600 to-blue-600 p-[2px] rounded-2xl shadow-xl">
-            <div className="bg-white px-8 py-4 rounded-[14px] text-center max-w-md">
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1 italic">Samenkomstpunt</h4>
-              <p className="text-[11px] text-gray-600 leading-tight">
-                <strong>Het Mapping Moment:</strong> De legacy logica van Team 1 wordt gematcht met het technische target model van Team 2. 
-                Vanaf hier wordt de data daadwerkelijk 'geladen'.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Phase 3: Build & Agentic Implementation */}
-        <div className="relative">
-          <div className="absolute left-1/2 -top-6 transform -translate-x-1/2 bg-indigo-900 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter z-10 hidden md:block">Fase 3: Implementation</div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="col-span-1 border-r border-indigo-100 pr-4">
-                <h5 className="text-[11px] font-bold text-indigo-900 mb-2 uppercase">Integratie & Data</h5>
-                <TaskList color="text-indigo-600" tasks={[
-                  "Deployment Fabric Pipelines (BW Data)",
-                  "Validatie Bronze naar Gold flow",
-                  "Lineage koppeling in Purview"
-                ]} />
-              </div>
-              <div className="col-span-1 border-r border-indigo-100 pr-4">
-                <h5 className="text-[11px] font-bold text-indigo-900 mb-2 uppercase">Agentic AI (Target)</h5>
-                <TaskList color="text-indigo-600" tasks={[
-                  "Configuratie 'Brain' (GPT-4o)",
-                  "Koppeling Agent Tools aan Fabric SQL",
-                  "Testen Planning & Orchestration"
-                ]} />
-              </div>
-              <div className="col-span-1">
-                <h5 className="text-[11px] font-bold text-indigo-900 mb-2 uppercase">Reporting & DS</h5>
-                <TaskList color="text-indigo-600" tasks={[
-                  "Power BI Direct Lake koppeling",
-                  "Vrijgave voor Data Analisten",
-                  "Monitorering Model Accuracy"
-                ]} />
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   </div>
 );
 
-// --- Fix: Added missing ComplianceShield component ---
-const ComplianceShield: React.FC = () => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+const SevenStepTimeline: React.FC = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 1. BW Bronnen */}
+      <TimelineStep 
+        number={1} 
+        title="BW Bronnen - Analyse" 
+        owner="Technisch Team"
+        icon="fa-search"
+        colorClass="border-blue-100 bg-blue-600"
+        description="Alle bestaande BW-bronnen worden in kaart gebracht. Analyse van technische structuur en businesslogica om kwaliteit, volledigheid en geschiktheid te bepalen."
+        milestones={["Data mapping", "Structuur inzicht", "Kwaliteitschecks"]}
+      />
+      {/* 2. Ontsluiten */}
+      <TimelineStep 
+        number={2} 
+        title="Ontsluiten naar Azure" 
+        owner="Cloud Engineering"
+        icon="fa-cloud-arrow-up"
+        colorClass="border-blue-100 bg-blue-600"
+        description="Data uit BW toegankelijk maken in Azure (Fabric/OneLake). Focus op veilig en efficiënt overbrengen voor verdere modellering."
+        milestones={["Rechtenbeheer", "Technische ontsluiting", "Data tracking"]}
+      />
+    </div>
+
+    {/* 3. Modellering */}
+    <TimelineStep 
+      number={3} 
+      title="Data Modellering op Azure" 
+      owner="Engineers & Architecten"
+      icon="fa-sitemap"
+      colorClass="border-green-100 bg-green-600"
+      description="Domeingerichte Data Marts ontwerpen die aansluiten op de businessbehoefte. Voorbereiding voor de Golden Layer via gestandaardiseerde modellen."
+      milestones={["Datakwaliteit", "Standaardisatie", "Bron-naar-Model mapping"]}
+    />
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 5. Bouwen Golden Layer */}
+      <TimelineStep 
+        number={5} 
+        title="Bouwen Golden Layer" 
+        owner="Data Engineers"
+        icon="fa-industry"
+        colorClass="border-yellow-100 bg-yellow-500"
+        description="ETL/Pipelines in Fabric of Synapse die de gemodelleerde data transformeren naar een gezuiverde eindlaag."
+        milestones={["Pipelines", "ETL Processen", "Logging & Monitoring"]}
+      />
+      {/* 4. Golden Layer Definitie */}
+      <TimelineStep 
+        number={4} 
+        title="Golden Layer - Bron van Waarheid" 
+        owner="Gezamenlijk"
+        icon="fa-trophy"
+        colorClass="border-yellow-100 bg-yellow-500"
+        description="De gezuiverde, beheerde eindlaag. Het vertrekpunt voor alle analyses, PowerBI en AI-agents."
+        milestones={["Governance", "Versiebeheer", "Traceerbaarheid"]}
+      />
+    </div>
+
+    {/* 6. Gebruik */}
+    <TimelineStep 
+      number={6} 
+      title="Gebruik: PowerBI & Agentic AI" 
+      owner="BI & AI Teams"
+      icon="fa-robot"
+      colorClass="border-orange-100 bg-orange-600"
+      description="Exploratory analysis en rapportages. Agentic AI voor geautomatiseerde beslissingen en data-interactie via POC's."
+      milestones={["PowerBI Dashboards", "AI Agents POC", "Feedback Loops"]}
+    />
+
+    {/* 7. Koppelmomenten Overlay */}
+    <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-8 opacity-10">
+        <i className="fas fa-shield-halved text-[100px]"></i>
+      </div>
+      <div className="relative z-10">
+        <h4 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i className="fas fa-link text-indigo-400"></i> Stap 7: Koppelmomenten & Overlays
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Data Mapping', icon: 'fa-map-signs' },
+            { label: 'Rechtenbeheer', icon: 'fa-user-shield' },
+            { label: 'Datakwaliteit', icon: 'fa-vial-circle-check' },
+            { label: 'Governance & Security', icon: 'fa-fingerprint' }
+          ].map((item, i) => (
+            <div key={i} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center text-center">
+              <i className={`fas ${item.icon} mb-2 text-indigo-400`}></i>
+              <span className="text-[10px] font-bold uppercase">{item.label}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-xs text-slate-400 italic">Deze transversale aspecten waarborgen de integriteit van het gehele proces van BW naar AI.</p>
+      </div>
+    </div>
+  </div>
+);
+
+const ComplianceDashboard: React.FC = () => (
+  <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
     <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
       <i className="fas fa-shield-alt text-green-600"></i>
-      Compliance Dashboard
+      Lestel Compliance Status
     </h4>
     <div className="space-y-3">
-      {Object.values(ComplianceRule).map((rule) => (
-        <div key={rule} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-          <div className="flex items-center gap-2">
-            <i className="fas fa-check-circle text-green-500 text-[10px]"></i>
-            <span className="text-[10px] font-medium text-gray-700">{rule}</span>
+      {[
+        { rule: ComplianceRule.BIO, icon: 'fa-building-columns' },
+        { rule: ComplianceRule.AVG, icon: 'fa-user-lock' },
+        { rule: ComplianceRule.DATA_RESIDENCY, icon: 'fa-map-location-dot' },
+        { rule: ComplianceRule.PURVIEW, icon: 'fa-eye' }
+      ].map((item) => (
+        <div key={item.rule} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
+          <div className="flex items-center gap-3">
+            <i className={`fas ${item.icon} text-gray-400 text-xs`}></i>
+            <span className="text-[10px] font-bold text-gray-700">{item.rule}</span>
           </div>
-          <span className="text-[8px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">Active</span>
+          <span className="text-[8px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-black uppercase">Active</span>
         </div>
       ))}
     </div>
@@ -215,14 +212,14 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const nodes: ArchitectureNode[] = [
-    { id: 'sap-bw', label: 'Legacy BW', category: 'Source', description: 'De huidige bron die we migreren naar de cloud.', icon: 'fa-server', color: 'bg-red-500' },
-    { id: 'fabric-df', label: 'Data Factory', category: 'Ingestion', description: 'Pipeline orkestratie for SAP BW extractie via SHIR.', icon: 'fa-industry', color: 'bg-orange-500' },
-    { id: 'fabric-onelake', label: 'OneLake', category: 'Storage', description: 'De "OneDrive for Data". Bronze, Silver en Gold lagen.', icon: 'fa-cloud', color: 'bg-blue-600' },
-    { id: 'fabric-notebooks', label: 'Data Science', category: 'Processing', description: 'Spark Notebooks for ML modellen.', icon: 'fa-vials', color: 'bg-purple-500' },
-    { id: 'fabric-warehouse', label: 'SQL Warehouse', category: 'Serving', description: 'Analytische laag for SQL queries.', icon: 'fa-table', color: 'bg-cyan-500' },
-    { id: 'powerbi', label: 'Power BI', category: 'Serving', description: 'Direct Lake rapportages.', icon: 'fa-chart-pie', color: 'bg-yellow-500' },
-    { id: 'agentic-ai', label: 'Agentic AI', category: 'AI', description: 'Smart agents die tools aanroepen.', icon: 'fa-robot', color: 'bg-indigo-600' },
-    { id: 'purview', label: 'Purview', category: 'Governance', description: 'Data catalogus & Lineage.', icon: 'fa-search', color: 'bg-teal-500' },
+    { id: 'sap-bw', label: 'BW Sources', category: 'Source', description: 'Basis voor analyse en inventarisatie.', icon: 'fa-database', color: 'bg-blue-600' },
+    { id: 'fabric-df', label: 'Ontsluiting', category: 'Ingestion', description: 'Verplaatsen van data naar Azure.', icon: 'fa-shuffle', color: 'bg-blue-600' },
+    { id: 'fabric-onelake', label: 'Lakehouse', category: 'Storage', description: 'Data Landing & Storage.', icon: 'fa-cloud', color: 'bg-blue-400' },
+    { id: 'fabric-modeling', label: 'Modellering', category: 'Processing', description: 'Opzet van Data Marts.', icon: 'fa-sitemap', color: 'bg-green-600' },
+    { id: 'golden-layer', label: 'Golden Layer', category: 'Serving', description: 'Gezuiverde eindlaag.', icon: 'fa-star', color: 'bg-yellow-500' },
+    { id: 'powerbi', label: 'Power BI', category: 'Serving', description: 'Rapporten & Visualisaties.', icon: 'fa-chart-pie', color: 'bg-orange-500' },
+    { id: 'agentic-ai', label: 'Agentic AI', category: 'AI', description: 'Automatisering & POCs.', icon: 'fa-robot', color: 'bg-orange-600' },
+    { id: 'purview', label: 'Purview', category: 'Governance', description: 'Governance & Auditing.', icon: 'fa-fingerprint', color: 'bg-indigo-600' },
   ];
 
   const activeNode = nodes.find(n => n.id === activeNodeId);
@@ -242,7 +239,6 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      // Create a new instance right before making an API call
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -252,120 +248,124 @@ export default function App() {
         })),
         config: {
           systemInstruction: `Je bent een Senior Azure & Fabric Architect. 
-          Focus op de specifieke taken in de tijdlijn:
-          - Team 1 (Inventarisatie) doet het legacy speurwerk.
-          - Team 2 (Modellering) bouwt het nieuwe huis.
-          - In Fase 3 komen Agentic AI en Data Science samen op de Gold laag.
-          Help de gebruiker bepalen wat de prioriteiten zijn binnen deze takenlijst.`,
+          Help de gebruiker met de 7-stappen strategie voor het Lestel domein:
+          1. BW Analyse (Blauw)
+          2. Ontsluiten naar Azure (Blauw)
+          3. Modellering (Groen)
+          4. Golden Layer Definitie (Geel)
+          5. Bouwen Golden Layer Pipelines (Geel/Groen)
+          6. Gebruik in PowerBI & Agentic AI (Oranje)
+          7. Koppelmomenten (Governance/Security/Kwaliteit)
+          
+          Geef specifiek advies over de 'Agentic AI' interactie met de 'Golden Layer'.`,
         },
       });
 
-      const aiText = response.text || "Sorry, ik kon geen antwoord genereren.";
+      const aiText = response.text || "Sorry, de architect kon geen antwoord genereren.";
       setChatHistory(prev => [...prev, { role: 'model', content: aiText }]);
     } catch (error) {
       console.error("AI Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Er is een fout opgetreden." }]);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Fout bij communicatie met AI." }]);
     } finally {
       setIsTyping(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50/50">
       <Header />
 
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Side: Visualization and Details */}
-        <div className="lg:col-span-8 space-y-6">
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1600px] mx-auto w-full">
+        {/* Left Side: Timeline and Specs */}
+        <div className="lg:col-span-8 space-y-8">
           
-          <UnifiedTimeline />
+          <SevenStepTimeline />
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Architectuur Componenten</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Componenten Detail</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
               {nodes.map(node => (
                 <NodeCard key={node.id} node={node} isActive={activeNodeId === node.id} onClick={() => setActiveNodeId(node.id)} />
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
               <div>
-                <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <h4 className="font-black text-gray-900 mb-3 flex items-center gap-2 uppercase tracking-tight text-sm">
                   <i className={`fas ${activeNode?.icon} text-blue-600`}></i>
                   Focus: {activeNode?.label}
                 </h4>
-                <p className="text-gray-600 text-[11px] leading-relaxed mb-4">
-                  {activeNode?.description} In de huidige fase van de tijdlijn is dit component cruciaal for de overdracht van Team 1 naar Team 2.
+                <p className="text-gray-600 text-xs leading-relaxed mb-6">
+                  {activeNode?.description} Dit component speelt een centrale rol in de overgang tussen de verschillende processtappen.
                 </p>
               </div>
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <div className="flex justify-between text-[10px] mb-1">
-                  <span className="text-gray-500 uppercase font-bold">BIO Compliance</span>
-                  <span className="text-green-600 font-bold">VERIFIED</span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-gray-500 uppercase font-bold">Data Residency</span>
-                  <span className="text-blue-600 font-bold">NL WEST</span>
-                </div>
+              <div className="flex gap-2">
+                <span className="px-2 py-1 bg-blue-50 text-[9px] font-bold rounded-lg text-blue-700 uppercase">Audit Proof</span>
+                <span className="px-2 py-1 bg-green-50 text-[9px] font-bold rounded-lg text-green-700 uppercase">Scalable</span>
               </div>
             </div>
-            <ComplianceShield />
+            <ComplianceDashboard />
           </div>
         </div>
 
-        {/* Right Side: Chat Assistant */}
-        <div className="lg:col-span-4 flex flex-col h-[calc(100vh-140px)]">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
-            <div className="p-4 bg-gray-900 text-white flex items-center gap-3">
-              <div className="bg-blue-500 p-2 rounded-lg">
-                <i className="fas fa-microchip"></i>
+        {/* Right Side: AI Assistant */}
+        <div className="lg:col-span-4 h-[calc(100vh-140px)] sticky top-[100px]">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
+            <div className="p-6 bg-slate-900 text-white flex items-center gap-4">
+              <div className="bg-blue-600 p-3 rounded-2xl">
+                <i className="fas fa-brain"></i>
               </div>
               <div>
-                <h3 className="font-bold text-sm">Task Orchestrator AI</h3>
-                <p className="text-[10px] text-gray-400">Vraag advies over specifieke taken</p>
+                <h3 className="font-bold text-sm">Architect Assistent</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Lestel Domein Orchestrator</p>
               </div>
             </div>
 
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
               {chatHistory.length === 0 && (
-                <div className="text-center py-10">
-                  <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
-                    <i className="fas fa-tasks text-blue-400"></i>
+                <div className="text-center py-12 px-4">
+                  <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
+                    <i className="fas fa-route text-blue-500 text-xl"></i>
                   </div>
-                  <p className="text-gray-500 text-[11px] px-6">
-                    Ik help bij de taakverdeling tussen de teams. Vraag me bijvoorbeeld: <br/>
-                    <em className="text-[10px] block mt-2 text-blue-600">"Welke BW objecten moet Team 1 als eerste inventariseren for Power BI?"</em>
+                  <h4 className="font-bold text-slate-800 mb-2">Hulp bij de 7 stappen?</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Stel vragen over de specifieke koppelmomenten of de inrichting van de Agentic AI POC's.
                   </p>
                 </div>
               )}
               {chatHistory.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-[11px] ${
-                    msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+                  <div className={`max-w-[85%] p-4 rounded-3xl text-xs leading-relaxed ${
+                    msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-slate-800 rounded-tl-none'
                   }`}>
                     {msg.content}
                   </div>
                 </div>
               ))}
-              {isTyping && <div className="text-[10px] text-gray-400 animate-pulse">AI is aan het nadenken...</div>}
+              {isTyping && <div className="text-[10px] text-gray-400 animate-pulse flex gap-1"><i className="fas fa-circle text-[4px] mt-1.5"></i> AI denkt na...</div>}
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-100">
-              <div className="flex gap-2">
+            <div className="p-6 bg-white border-t border-slate-100">
+              <div className="relative">
                 <input 
                   type="text" 
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Vraag over de takenlijst..."
-                  className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-2 text-[11px] focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Vraag advies over een stap..."
+                  className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
                 />
-                <button onClick={handleSendMessage} disabled={!userInput.trim() || isTyping} className="bg-blue-600 text-white p-2 rounded-xl w-10 h-10 flex items-center justify-center shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={!userInput.trim() || isTyping}
+                  className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-xl shadow-lg disabled:opacity-50 transition-all active:scale-95"
+                >
                   <i className="fas fa-bolt"></i>
                 </button>
               </div>
+              <p className="text-[9px] text-center text-slate-400 mt-4 font-black uppercase tracking-tighter">Powered by Gemini & Fabric AI</p>
             </div>
           </div>
         </div>
