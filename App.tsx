@@ -2,11 +2,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ArchitectureNode, ChatMessage, ComplianceRule } from './types';
 import { GoogleGenAI } from "@google/genai";
+import html2canvas from 'https://esm.sh/html2canvas@1.4.1';
 
 // --- Components ---
 
-const Header: React.FC = () => (
-  <header className="bg-white border-b border-gray-200 py-4 px-8 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onExport, isExporting }) => (
+  <header className="bg-white border-b border-gray-200 py-4 px-8 flex justify-between items-center sticky top-0 z-50 shadow-sm no-print">
     <div className="flex items-center gap-4">
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
         <i className="fas fa-project-diagram text-2xl"></i>
@@ -24,8 +25,15 @@ const Header: React.FC = () => (
         </span>
         <span className="text-[10px] text-gray-400 font-medium">Data Residency: NL West</span>
       </div>
-      <button className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border border-blue-100 flex items-center gap-2">
-        <i className="fas fa-file-export"></i> Export Plaat
+      <button 
+        onClick={onExport}
+        disabled={isExporting}
+        className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 ${
+          isExporting ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+        }`}
+      >
+        <i className={`fas ${isExporting ? 'fa-spinner fa-spin' : 'fa-download'}`}></i>
+        {isExporting ? 'Exporteren...' : 'Export Plaat'}
       </button>
     </div>
   </header>
@@ -55,48 +63,51 @@ const TimelineStep: React.FC<{
   milestones: string[];
   extraInfo: React.ReactNode;
   isActive: boolean;
+  isExporting: boolean;
   onClick: () => void;
-}> = ({ number, title, description, owner, colorClass, icon, milestones, extraInfo, isActive, onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`relative p-6 rounded-[2rem] border-2 transition-all cursor-pointer overflow-hidden ${
-      isActive 
-        ? `bg-white ${colorClass.split(' ')[0].replace('border-', 'ring-4 ring-')} scale-[1.02] shadow-xl z-20` 
-        : `bg-white ${colorClass.split(' ')[0]} shadow-sm hover:shadow-md z-10`
-    }`}
-  >
-    <div className="flex items-start gap-4">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${colorClass.split(' ')[1]}`}>
-        <i className={`fas ${icon} text-xl`}></i>
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Stap {number}</span>
-            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <span className="text-[10px] font-bold text-gray-500 uppercase">{owner}</span>
+}> = ({ number, title, description, owner, colorClass, icon, milestones, extraInfo, isActive, isExporting, onClick }) => {
+  const isExpanded = isActive || isExporting;
+  return (
+    <div 
+      onClick={onClick}
+      className={`relative p-6 rounded-[2rem] border-2 transition-all cursor-pointer overflow-hidden ${
+        isExpanded && !isExporting
+          ? `bg-white ${colorClass.split(' ')[0].replace('border-', 'ring-4 ring-')} scale-[1.01] shadow-xl z-20` 
+          : `bg-white ${colorClass.split(' ')[0]} shadow-sm hover:shadow-md z-10`
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${colorClass.split(' ')[1]}`}>
+          <i className={`fas ${icon} text-xl`}></i>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Stap {number}</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase">{owner}</span>
+            </div>
+            <i className={`fas ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px] opacity-40 no-print export-ignore`}></i>
           </div>
-          <i className={`fas ${isActive ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px] opacity-40`}></i>
-        </div>
-        <h4 className="text-lg font-black text-gray-900 mb-2">{title}</h4>
-        <p className="text-xs text-gray-600 leading-relaxed mb-4">{description}</p>
-        
-        <div className="flex flex-wrap gap-2">
-          {milestones.map((m, i) => (
-            <span key={i} className="px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500 flex items-center gap-1">
-              <i className="fas fa-link text-[8px] opacity-40"></i> {m}
-            </span>
-          ))}
-        </div>
+          <h4 className="text-lg font-black text-gray-900 mb-2">{title}</h4>
+          <p className="text-xs text-gray-600 leading-relaxed mb-4">{description}</p>
+          
+          <div className="flex flex-wrap gap-2">
+            {milestones.map((m, i) => (
+              <span key={i} className="px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500 flex items-center gap-1">
+                <i className="fas fa-link text-[8px] opacity-40"></i> {m}
+              </span>
+            ))}
+          </div>
 
-        {/* Extra Information Section */}
-        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isActive ? 'max-h-[500px] mt-6 pt-6 border-t border-gray-100 opacity-100' : 'max-h-0 opacity-0'}`}>
-          {extraInfo}
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[800px] mt-6 pt-6 border-t border-gray-100 opacity-100' : 'max-h-0 opacity-0'}`}>
+            {extraInfo}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ComplianceDashboard: React.FC = () => (
   <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
@@ -131,6 +142,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const nodes: ArchitectureNode[] = [
@@ -170,8 +182,8 @@ export default function App() {
         })),
         config: {
           systemInstruction: `Je bent een Senior Azure & Fabric Architect. 
-          Help de gebruiker met de 7-stappen strategie voor het Lestel domein.
-          Stel specifiek vragen over de context van de huidige actieve stap in de visualisatie (Stap ${activeStepId}).`,
+          Help de gebruiker met de 7-stappen strategie voor het Lestel domein (SAP BW naar Azure Fabric).
+          Focus op de specifieke koppelmomenten, governance en de overgang naar de Golden Layer.`,
         },
       });
 
@@ -189,40 +201,69 @@ export default function App() {
     setActiveStepId(activeStepId === stepId ? null : stepId);
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    // Expand steps and wait for render
+    setTimeout(async () => {
+      try {
+        const element = document.getElementById('architecture-plaat');
+        if (element) {
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#f8fafc',
+            logging: false,
+            ignoreElements: (el) => el.classList.contains('export-ignore'),
+          });
+          const link = document.createElement('a');
+          link.download = `Lestel-Fabric-Architecture-${new Date().toISOString().split('T')[0]}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        }
+      } catch (err) {
+        console.error("Export error:", err);
+        window.print();
+      } finally {
+        setIsExporting(false);
+      }
+    }, 600);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50/50">
-      <Header />
+      <Header onExport={handleExport} isExporting={isExporting} />
 
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1600px] mx-auto w-full">
         {/* Left Side: Timeline and Specs */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-8" id="architecture-plaat">
           
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 1. BW Bronnen */}
               <TimelineStep 
                 number={1} 
-                title="BW Bronnen - Analyse" 
+                title="BW Bronnen - Analyse en Inventarisatie" 
                 owner="Technisch team"
                 icon="fa-search"
                 colorClass="border-blue-100 bg-blue-600"
-                description="Alle bestaande BW-bronnen worden in kaart gebracht. Analyse van technische structuur en businesslogica."
+                description="Alle bestaande BW-bronnen in kaart brengen. Focus op technische structuur en businesslogica."
                 milestones={["Data mapping", "Structuur inzicht", "Kwaliteitschecks"]}
                 isActive={activeStepId === 1}
+                isExporting={isExporting}
                 onClick={() => handleStepClick(1)}
                 extraInfo={
                   <div className="space-y-3">
                     <p className="text-[11px] text-gray-500 leading-relaxed italic border-l-2 border-blue-200 pl-3">
-                      Het team voert een "Readiness Assessment" uit. We kijken specifiek naar InfoCubes en DSO's binnen het Lestel domein die juridische bewaartermijnen bevatten.
+                      Doel: Begrijpen welke data al ontsloten is, wat de kwaliteit is en welke data geschikt is voor Azure.
                     </p>
                     <div className="grid grid-cols-2 gap-2 mt-4">
                       <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
-                        <span className="text-[9px] font-black block mb-1">Legacy ABAP Scan</span>
-                        <p className="text-[10px] text-gray-600">Complexiteits-analyse van bestaande transformatie-logica.</p>
+                        <span className="text-[9px] font-black block mb-1 uppercase text-blue-800">Legacy Scan</span>
+                        <p className="text-[10px] text-gray-600 leading-tight">Cubes, DSO's en ABAP logica mapping.</p>
                       </div>
                       <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
-                        <span className="text-[9px] font-black block mb-1">Metadata Discovery</span>
-                        <p className="text-[10px] text-gray-600">Mapping van technisch veld naar business-concept.</p>
+                        <span className="text-[9px] font-black block mb-1 uppercase text-blue-800">Metadata Scan</span>
+                        <p className="text-[10px] text-gray-600 leading-tight">Volledigheid en geschiktheid per object.</p>
                       </div>
                     </div>
                   </div>
@@ -232,24 +273,25 @@ export default function App() {
               <TimelineStep 
                 number={2} 
                 title="Ontsluiten naar Azure" 
-                owner="Cloud Engineering"
+                owner="Wordt later bepaald"
                 icon="fa-cloud-arrow-up"
                 colorClass="border-blue-100 bg-blue-600"
-                description="Data uit BW toegankelijk maken in Azure. Veilig en efficiënt overbrengen naar OneLake."
+                description="Data uit BW toegankelijk maken in Azure (Fabric/OneLake). Veilig en efficiënt overbrengen."
                 milestones={["Rechtenbeheer", "Technische ontsluiting", "Data tracking"]}
                 isActive={activeStepId === 2}
+                isExporting={isExporting}
                 onClick={() => handleStepClick(2)}
                 extraInfo={
-                  <div className="space-y-4">
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-gray-500 italic">"Data landing in de Bronze zone voor verdere modellering."</p>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <h5 className="text-[10px] font-black mb-2 uppercase">Ontsluitings-strategie</h5>
+                      <h5 className="text-[10px] font-black mb-2 uppercase text-slate-700">Landing Zone</h5>
                       <ul className="text-[10px] text-gray-600 space-y-1">
-                        <li>• Gebruik van SAP CDC connectors voor real-time sync.</li>
-                        <li>• OneLake "Shortcuts" voor hybride ontsluiting.</li>
-                        <li>• Azure Data Factory pipelines voor bulk-historie.</li>
+                        <li>• Rechtenbeheer op OneLake.</li>
+                        <li>• Technische ontsluiting via Pipelines.</li>
+                        <li>• Tracking van data-lineage vanaf de bron.</li>
                       </ul>
                     </div>
-                    <p className="text-[10px] text-gray-400">Security: Integratie met Azure Private Links voor een gesloten netwerkverbinding.</p>
                   </div>
                 }
               />
@@ -259,23 +301,19 @@ export default function App() {
             <TimelineStep 
               number={3} 
               title="Data Modellering op Azure" 
-              owner="Engineers & Architecten"
+              owner="Data engineers bouwen, wij ontwerpen"
               icon="fa-sitemap"
               colorClass="border-green-100 bg-green-600"
-              description="Domeingerichte modellen maken, zoals Data Marts. Gezamenlijk ontwerp in de Silver layer."
+              description="Domeingerichte modellen maken (Data Marts) die aansluiten op de businessbehoefte."
               milestones={["Datakwaliteit", "Standaardisatie", "Mapping brondata"]}
               isActive={activeStepId === 3}
+              isExporting={isExporting}
               onClick={() => handleStepClick(3)}
               extraInfo={
-                <div className="flex gap-4 items-center">
-                  <div className="flex-1 bg-green-50 p-4 rounded-2xl border border-green-100">
-                    <h5 className="text-[10px] font-black mb-2 uppercase text-green-800">Medallion Architectuur</h5>
-                    <p className="text-[10px] text-green-700 leading-relaxed">
-                      Hier vindt de transformatie plaats van de ruwe 'Bronze' data naar de opgeschoonde 'Silver' data. We passen uniforme business-regels toe die specifiek zijn voor het Lestel domein (bijv. berekening van doorlooptijden).
-                    </p>
-                  </div>
-                  <div className="w-24 h-24 bg-white rounded-xl border-2 border-dashed border-green-200 flex items-center justify-center">
-                     <i className="fas fa-layer-group text-green-300 text-3xl"></i>
+                <div className="space-y-3">
+                  <p className="text-[11px] text-gray-600">Gezamenlijk ontwerp van Star Schema's en transformaties in de Silver layer.</p>
+                  <div className="bg-green-50 p-3 rounded-xl border border-green-100 text-[10px] text-green-800">
+                    <i className="fas fa-vial mr-2"></i> Validatie van mapping brondata naar target modellen.
                   </div>
                 </div>
               }
@@ -289,20 +327,17 @@ export default function App() {
                 owner="Data engineers"
                 icon="fa-industry"
                 colorClass="border-yellow-100 bg-yellow-500"
-                description="Gestructureerde ETL-processen/pipelines in Fabric. Transformatie naar een consistente eindlaag."
-                milestones={["Governance", "Datakwaliteit", "Monitoring & Logging"]}
+                description="Gestructureerde ETL-processen (Pipelines) in Fabric. Transformatie naar een gezuiverde eindlaag."
+                milestones={["Pipelines", "ETL Processen", "Logging & Monitoring"]}
                 isActive={activeStepId === 4}
+                isExporting={isExporting}
                 onClick={() => handleStepClick(4)}
                 extraInfo={
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                       <span className="w-2 h-2 bg-yellow-400 rounded-full animate-ping"></span>
-                       <span className="text-[9px] font-bold text-yellow-700 uppercase">Productie-omgeving</span>
-                    </div>
-                    <p className="text-[10px] text-gray-600 italic">"Pipelines worden zo ingericht dat elke verwerking volledig traceerbaar is (auditing)."</p>
+                    <p className="text-[11px] text-gray-500">Koppelmomenten: Datakwaliteit checks en consistentie waarborging.</p>
                     <div className="bg-yellow-50/50 p-2 rounded-lg border border-yellow-100">
-                      <span className="text-[9px] font-black block">Fabric Notebooks</span>
-                      <p className="text-[10px] text-gray-500">Spark-gebaseerde verwerking voor maximale schaalbaarheid.</p>
+                      <span className="text-[9px] font-black block uppercase text-yellow-800">Audit Trail</span>
+                      <p className="text-[10px] text-gray-600">Logging van elke transformatie-stap voor transparantie.</p>
                     </div>
                   </div>
                 }
@@ -310,30 +345,21 @@ export default function App() {
               {/* 5. Golden Layer Definitie */}
               <TimelineStep 
                 number={5} 
-                title="Golden Layer - Definitieve Dataset" 
+                title="Golden Layer – Definitieve Dataset" 
                 owner="Allen betrokken"
-                icon="fa-trophy"
+                icon="fa-star"
                 colorClass="border-yellow-100 bg-yellow-500"
-                description="De gezuiverde, beheerde eindlaag. Het vertrekpunt voor alle analyses en AI."
+                description="De gezuiverde, beheerde eindlaag. Het vertrekpunt voor alle analyses."
                 milestones={["Governance", "Versiebeheer", "Traceerbaarheid"]}
                 isActive={activeStepId === 5}
+                isExporting={isExporting}
                 onClick={() => handleStepClick(5)}
                 extraInfo={
                   <div className="space-y-3">
-                    <h5 className="text-[10px] font-black uppercase text-yellow-800">Consumer Interface</h5>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-center border border-yellow-100">
-                        <i className="fas fa-table text-yellow-600 mb-1 text-[10px]"></i>
-                        <span className="text-[8px] font-bold block">SQL Endpoints</span>
-                      </div>
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-center border border-yellow-100">
-                        <i className="fas fa-database text-yellow-600 mb-1 text-[10px]"></i>
-                        <span className="text-[8px] font-bold block">Delta Lake</span>
-                      </div>
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-center border border-yellow-100">
-                        <i className="fas fa-vial text-yellow-600 mb-1 text-[10px]"></i>
-                        <span className="text-[8px] font-bold block">OneLake</span>
-                      </div>
+                    <p className="text-[11px] text-gray-600">De "Single Source of Truth" voor PowerBI en AI-agents.</p>
+                    <div className="flex gap-2">
+                       <span className="text-[8px] bg-white border border-yellow-200 px-2 py-1 rounded">Delta Lake</span>
+                       <span className="text-[8px] bg-white border border-yellow-200 px-2 py-1 rounded">Direct Lake</span>
                     </div>
                   </div>
                 }
@@ -347,31 +373,24 @@ export default function App() {
               owner="BI-team / AI-team"
               icon="fa-robot"
               colorClass="border-orange-100 bg-orange-600"
-              description="Rapportages en exploratory analysis. Agentic AI voor geautomatiseerde beslissingen."
-              milestones={["Feedback loops", "AI-keuzes", "Dataverrijking"]}
+              description="Rapportages en exploratory analysis via AI-agents. POC's voor AI-verkenning."
+              milestones={["PowerBI", "AI Agents POC", "Feedback loops"]}
               isActive={activeStepId === 6}
+              isExporting={isExporting}
               onClick={() => handleStepClick(6)}
               extraInfo={
-                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 space-y-4">
-                  <div className="flex justify-between items-center border-b border-orange-200 pb-2">
-                    <h5 className="text-[10px] font-black text-orange-900 uppercase">Agentic AI Framework</h5>
-                    <span className="text-[8px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">Microsoft Framework</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 space-y-3">
+                  <h5 className="text-[10px] font-black text-orange-900 uppercase">Agentic AI & Analytics</h5>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <span className="text-[9px] font-black text-orange-800 uppercase flex items-center gap-1">
-                        <i className="fas fa-brain"></i> The Brain
-                      </span>
-                      <p className="text-[10px] text-gray-600">OpenAI o1-mini model voor redeneren over juridische data.</p>
+                      <span className="text-[9px] font-black text-orange-800 uppercase"><i className="fas fa-chart-line mr-1"></i> PowerBI</span>
+                      <p className="text-[10px] text-gray-600">Dashboards voor strategische beslissingen.</p>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[9px] font-black text-orange-800 uppercase flex items-center gap-1">
-                        <i className="fas fa-memory"></i> Memory
-                      </span>
-                      <p className="text-[10px] text-gray-600">Vector Search indexen op de Golden Layer data.</p>
+                      <span className="text-[9px] font-black text-orange-800 uppercase"><i className="fas fa-brain mr-1"></i> AI Agents</span>
+                      <p className="text-[10px] text-gray-600">POC's voor interactie met juridische data.</p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-orange-700 italic">"Power BI dashboards tonen de real-time status, terwijl de AI-agenten pro-actief afwijkingen signaleren."</p>
                 </div>
               }
             />
@@ -379,7 +398,9 @@ export default function App() {
             {/* 7. Koppelmomenten Overlay */}
             <div 
               onClick={() => handleStepClick(7)}
-              className={`bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden transition-all cursor-pointer ${activeStepId === 7 ? 'scale-[1.02] ring-4 ring-indigo-500' : ''}`}
+              className={`bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden transition-all cursor-pointer ${
+                activeStepId === 7 && !isExporting ? 'scale-[1.01] ring-4 ring-indigo-500' : ''
+              }`}
             >
               <div className="absolute top-0 right-0 p-8 opacity-10">
                 <i className="fas fa-shield-halved text-[100px]"></i>
@@ -389,7 +410,7 @@ export default function App() {
                   <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                     <i className="fas fa-link text-indigo-400"></i> Stap 7: Koppelmomenten & Overlays
                   </h4>
-                  <i className={`fas ${activeStepId === 7 ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px] opacity-40`}></i>
+                  <i className={`fas ${activeStepId === 7 || isExporting ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px] opacity-40 no-print export-ignore`}></i>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
@@ -405,28 +426,17 @@ export default function App() {
                   ))}
                 </div>
                 
-                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${activeStepId === 7 ? 'max-h-[300px] mt-8 pt-6 border-t border-white/10 opacity-100' : 'max-h-0 opacity-0'}`}>
-                   <h5 className="text-[11px] font-black text-indigo-300 mb-3 uppercase tracking-widest">Detail-overzicht Governance</h5>
-                   <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                     Governance is niet een stap achteraf, maar een continu proces. We implementeren <strong>Microsoft Purview</strong> over de gehele keten om <em>end-to-end lineage</em> te garanderen van SAP BW tot aan de AI-output.
+                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${activeStepId === 7 || isExporting ? 'max-h-[300px] mt-8 pt-6 border-t border-white/10 opacity-100' : 'max-h-0 opacity-0'}`}>
+                   <p className="text-xs text-slate-300 leading-relaxed">
+                     De integriteit van het proces wordt gewaarborgd door continue checks op compliance, auditing en traceerbaarheid van SAP BW tot aan de AI-output.
                    </p>
-                   <div className="flex gap-4">
-                      <div className="flex-1 bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span className="text-[9px] font-black block mb-1 uppercase">Auditing</span>
-                        <p className="text-[10px] text-slate-400">Elke toegang tot de Golden Layer wordt gelogd conform de BIO-richtlijnen.</p>
-                      </div>
-                      <div className="flex-1 bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span className="text-[9px] font-black block mb-1 uppercase">SLA Monitoring</span>
-                        <p className="text-[10px] text-slate-400">Real-time dashboards over data-versheid en pipeline performance.</p>
-                      </div>
-                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Interactieve Componenten</h3>
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8 no-print">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Infrastructuur Componenten</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
               {nodes.map(node => (
                 <NodeCard key={node.id} node={node} isActive={activeNodeId === node.id} onClick={() => setActiveNodeId(node.id)} />
@@ -434,7 +444,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 no-print">
             <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
               <div>
                 <h4 className="font-black text-gray-900 mb-3 flex items-center gap-2 uppercase tracking-tight text-sm">
@@ -442,7 +452,7 @@ export default function App() {
                   Focus: {activeNode?.label}
                 </h4>
                 <p className="text-gray-600 text-xs leading-relaxed mb-6">
-                  {activeNode?.description} Dit component speelt een cruciale rol in het Lestel domein, met name in Stap {activeStepId || '...'}.
+                  {activeNode?.description} Dit component is essentieel voor het succes van het Lestel domein ecosysteem.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -455,7 +465,7 @@ export default function App() {
         </div>
 
         {/* Right Side: AI Assistant */}
-        <div className="lg:col-span-4 h-[calc(100vh-140px)] sticky top-[100px]">
+        <div className="lg:col-span-4 h-[calc(100vh-140px)] sticky top-[100px] no-print">
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
             <div className="p-6 bg-slate-900 text-white flex items-center gap-4">
               <div className="bg-blue-600 p-3 rounded-2xl">
@@ -473,9 +483,9 @@ export default function App() {
                   <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
                     <i className="fas fa-route text-blue-500 text-xl"></i>
                   </div>
-                  <h4 className="font-bold text-slate-800 mb-2">Hulp bij Stap {activeStepId}?</h4>
+                  <h4 className="font-bold text-slate-800 mb-2">Hulp nodig?</h4>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Je hebt nu {activeStepId ? `Stap ${activeStepId}` : 'geen stap'} geselecteerd. Stel me een vraag over de specifieke koppelmomenten of implementatie-details.
+                    Stel vragen over de 7-stappen strategie of hoe we Agentic AI inzetten op de Golden Layer.
                   </p>
                 </div>
               )}
@@ -498,7 +508,7 @@ export default function App() {
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Vraag advies over deze stap..."
+                  placeholder="Vraag advies over een stap..."
                   className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
                 />
                 <button 
