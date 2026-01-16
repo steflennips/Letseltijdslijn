@@ -23,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Gemini 3 Pro Architecture AI</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini 2.5 Flash AI (Licht & Snel)</span>
       </div>
       <button 
         onClick={onExport}
@@ -98,21 +98,28 @@ const TimelineStep: React.FC<{
 export default function App() {
   const [activeStepId, setActiveStepId] = useState<number | null>(1);
   const [activeTab, setActiveTab] = useState<'chat' | 'knowledge'>('chat');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [useSearch, setUseSearch] = useState(false);
   
-  // Knowledge Base State
-  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>([
-    { 
+  // --- Persistent State (Our 'Database') ---
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('lestel_chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(() => {
+    const saved = localStorage.getItem('lestel_knowledge_base');
+    const defaultDoc = [{ 
       id: '1', 
       title: 'Lestel Naming Conventions', 
       content: 'Alle Fabric Workspaces moeten beginnen met "LSTL-". Lakehouses gebruiken de suffix "_LH". Bronze data is altijd Raw Parquet. Silver data is Delta format.', 
       isActive: true 
-    }
-  ]);
+    }];
+    return saved ? JSON.parse(saved) : defaultDoc;
+  });
+
+  const [userInput, setUserInput] = useState('');
   const [isAddingKnowledge, setIsAddingKnowledge] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocContent, setNewDocContent] = useState('');
@@ -120,21 +127,35 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
 
+  // Auto-save to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('lestel_chat_history', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('lestel_knowledge_base', JSON.stringify(knowledgeDocs));
+  }, [knowledgeDocs]);
+
   const getChat = () => {
     if (chatRef.current) return chatRef.current;
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     chatRef.current = ai.chats.create({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash-preview', // Snel en efficiënt model
       config: {
-        systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je past RAG (Retrieval-Augmented Generation) toe om advies te geven over de migratie van SAP BW naar Microsoft Azure Fabric.
+        systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je bent een expert in de transitie van SAP BW naar Microsoft Azure Fabric.
 
-BELANGRIJKSTE REGELS:
-1. Gebruik ALTIJD de actieve documenten uit de 'Knowledge Base' (indien meegeleverd in de prompt) als je primaire bron.
-2. Noem de bronnen expliciet (bijv: "Volgens de documentatie over 'Naming Conventions'...").
-3. Als de bronnen geen antwoord bieden, gebruik dan je uitgebreide kennis over SAP ODP, ADSO, Fabric OneLake, Medallion Architectuur en de Nederlandse BIO-richtlijnen.
-4. Wees technisch nauwkeurig maar praktisch.
-5. Taal: Nederlands.`,
+HET PROCES:
+Je helpt gebruikers bij elke stap van de migratie: 
+1. BW Analyse, 2. Ingestie, 3. Medallion Modellering, 4. AI/ML, 5. Governance, 6. Operations.
+
+RAG & KENNIS:
+- Gebruik ALTIJD de actieve bronnen uit de Knowledge Base als primaire waarheid.
+- Citeer je bronnen.
+- Sla alle belangrijke architectuurbesluiten op in je antwoorden.
+
+TONE-OF-VOICE:
+Technisch, direct, behulpzaam en altijd conform BIO/AVG richtlijnen.`,
       },
     });
     return chatRef.current;
@@ -151,7 +172,7 @@ BELANGRIJKSTE REGELS:
 
     const activeDocs = knowledgeDocs.filter(d => d.isActive).map(d => `BRON [${d.title}]: ${d.content}`).join('\n\n');
     const promptWithContext = activeDocs 
-      ? `HIERONDER VOLGEN DE KENNISBRONNEN:\n${activeDocs}\n\nGEBRUIKERSVRAAG: ${userInput}`
+      ? `BRONNEN:\n${activeDocs}\n\nVRAAG:\n${userInput}`
       : userInput;
 
     const userMsg: ChatMessage = { role: 'user', content: userInput };
@@ -166,16 +187,22 @@ BELANGRIJKSTE REGELS:
         options.tools = [{ googleSearch: {} }];
       }
 
-      const result = await chat.sendMessage({ 
-        message: promptWithContext,
-      });
+      const result = await chat.sendMessage({ message: promptWithContext });
       
-      setChatHistory(prev => [...prev, { role: 'model', content: result.text || "Geen reactie ontvangen." }]);
+      const modelMsg: ChatMessage = { role: 'model', content: result.text || "Geen reactie ontvangen." };
+      setChatHistory(prev => [...prev, modelMsg]);
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Oeps! Er ging iets mis. Controleer je internetverbinding of API-instellingen." }]);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Oeps! Er ging iets mis. Controleer je internetverbinding." }]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const clearChat = () => {
+    if (confirm("Weet je zeker dat je de chat-historie wilt wissen uit de 'database'?")) {
+      setChatHistory([]);
+      localStorage.removeItem('lestel_chat_history');
     }
   };
 
@@ -220,6 +247,7 @@ BELANGRIJKSTE REGELS:
       <Header onExport={handleExport} isExporting={isExporting} />
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1600px] mx-auto w-full">
         <div className="lg:col-span-8 space-y-8" id="architecture-plaat">
+          {/* Top Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TimelineStep 
               number={1} 
@@ -249,6 +277,7 @@ BELANGRIJKSTE REGELS:
             />
           </div>
 
+          {/* Medallion Row (Full Width) */}
           <TimelineStep 
             number={3} 
             title="Data Modellering (Medallion)" 
@@ -263,6 +292,7 @@ BELANGRIJKSTE REGELS:
             extraInfo={<p className="text-[11px] text-gray-500">Gebruik van dbt of Spark Notebooks voor transformaties.</p>}
           />
 
+          {/* Bottom Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TimelineStep 
               number={4} 
@@ -291,8 +321,24 @@ BELANGRIJKSTE REGELS:
               extraInfo={<p className="text-[11px] text-gray-500">BIO-compliance via Microsoft Purview scanning.</p>}
             />
           </div>
+
+          {/* NEW: Step 6 Operations */}
+          <TimelineStep 
+            number={6} 
+            title="Operationaliseren & Optimaliseren" 
+            owner="DevOps / Cloud Ops"
+            icon="fa-rocket"
+            colorClass="bg-orange-500"
+            description="Continu monitoren, FinOps beheer en performance tuning."
+            milestones={["Capacity Planning", "Monitoring"]}
+            isActive={activeStepId === 6}
+            isExporting={isExporting}
+            onClick={() => setActiveStepId(6)}
+            extraInfo={<p className="text-[11px] text-gray-500">Beheer van Fabric Capaciteiten en kosten-optimalisatie per tenant.</p>}
+          />
         </div>
 
+        {/* Sidebar */}
         <div className="lg:col-span-4 h-[calc(100vh-140px)] sticky top-[100px] no-print">
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
             {/* Tab Header */}
@@ -307,20 +353,31 @@ BELANGRIJKSTE REGELS:
                 onClick={() => setActiveTab('knowledge')}
                 className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'knowledge' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                <i className="fas fa-book mr-2"></i> Bronnen (RAG)
+                <i className="fas fa-book mr-2"></i> Bronnen
               </button>
             </div>
 
             {activeTab === 'chat' ? (
               <>
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
+                  <div className="flex justify-between items-center px-2">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-2">
+                      <i className="fas fa-database text-green-500"></i> Lokaal Opgeslagen
+                    </span>
+                    {chatHistory.length > 0 && (
+                      <button onClick={clearChat} className="text-[9px] text-red-400 hover:text-red-600 font-bold">
+                        WIST HISTORIE
+                      </button>
+                    )}
+                  </div>
+                  
                   {chatHistory.length === 0 && (
                     <div className="text-center py-12 px-4">
                       <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i className="fas fa-robot text-blue-600 text-2xl"></i>
+                        <i className="fas fa-bolt text-blue-600 text-2xl"></i>
                       </div>
-                      <h4 className="font-bold text-slate-800">RAG-Enabled Architect</h4>
-                      <p className="text-xs text-slate-500 mt-2">Stel een vraag. Ik gebruik je actieve bronnen voor een context-bewust antwoord.</p>
+                      <h4 className="font-bold text-slate-800 tracking-tight text-sm">Gemini 2.5 Flash Architect</h4>
+                      <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">Snel, lichtgewicht en persistent. Elk advies wordt opgeslagen in je lokale database.</p>
                     </div>
                   )}
                   {chatHistory.map((msg, i) => (
@@ -334,8 +391,8 @@ BELANGRIJKSTE REGELS:
                   ))}
                   {isTyping && (
                     <div className="flex gap-2 items-center text-[10px] text-slate-400 px-4 animate-pulse">
-                      <i className="fas fa-microchip"></i>
-                      <span>Architect analyseert scenario en bronnen...</span>
+                      <i className="fas fa-microchip text-blue-400"></i>
+                      <span>Denkt na in 'Flash' tempo...</span>
                     </div>
                   )}
                 </div>
@@ -347,10 +404,10 @@ BELANGRIJKSTE REGELS:
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${useSearch ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'}`}
                     >
                       <i className={`fas ${useSearch ? 'fa-globe' : 'fa-circle-dot opacity-30'}`}></i>
-                      Live Search {useSearch ? 'AAN' : 'UIT'}
+                      Live Web Search {useSearch ? 'AAN' : 'UIT'}
                     </button>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      <i className="fas fa-link mr-1"></i> {knowledgeDocs.filter(d => d.isActive).length} Bronnen actief
+                      <i className="fas fa-link mr-1"></i> {knowledgeDocs.filter(d => d.isActive).length} Bronnen
                     </span>
                   </div>
                   <div className="relative">
@@ -359,7 +416,7 @@ BELANGRIJKSTE REGELS:
                       value={userInput}
                       onChange={(e) => setUserInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Stel je vraag..."
+                      placeholder="Stel een vraag over de transitie..."
                       className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
                       disabled={isTyping}
                     />
@@ -376,7 +433,7 @@ BELANGRIJKSTE REGELS:
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
                 <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Knowledge Base</h4>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Kennis Database</h4>
                   <button 
                     onClick={() => setIsAddingKnowledge(!isAddingKnowledge)}
                     className={`p-2 rounded-lg transition-all ${isAddingKnowledge ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
@@ -387,17 +444,17 @@ BELANGRIJKSTE REGELS:
                 
                 {isAddingKnowledge && (
                   <form onSubmit={handleSaveKnowledge} className="mb-8 p-4 bg-blue-50 rounded-2xl border border-blue-100 space-y-3 animate-in slide-in-from-top-4 duration-300">
-                    <h5 className="text-[10px] font-black text-blue-800 uppercase">Nieuwe Bron Toevoegen</h5>
+                    <h5 className="text-[10px] font-black text-blue-800 uppercase">Nieuwe Bron</h5>
                     <input 
                       autoFocus
                       type="text" 
-                      placeholder="Titel van het document"
+                      placeholder="Titel document"
                       value={newDocTitle}
                       onChange={(e) => setNewDocTitle(e.target.value)}
                       className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <textarea 
-                      placeholder="Inhoud (bijv. beleidstekst of snippets)"
+                      placeholder="Plak hier de inhoud van je document..."
                       value={newDocContent}
                       onChange={(e) => setNewDocContent(e.target.value)}
                       className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
@@ -407,13 +464,9 @@ BELANGRIJKSTE REGELS:
                       disabled={!newDocTitle || !newDocContent}
                       className="w-full bg-blue-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 shadow-md active:scale-95 transition-all"
                     >
-                      Bron Opslaan
+                      Bron Opslaan in Database
                     </button>
                   </form>
-                )}
-
-                {knowledgeDocs.length === 0 && !isAddingKnowledge && (
-                  <p className="text-xs text-slate-400 text-center py-8 italic">Geen bronnen toegevoegd.</p>
                 )}
 
                 <div className="space-y-3">
@@ -430,22 +483,15 @@ BELANGRIJKSTE REGELS:
                       </div>
                       <p className="text-[10px] text-slate-600 line-clamp-3 leading-relaxed mb-3">{doc.content}</p>
                       <button 
-                        onClick={() => setKnowledgeDocs(prev => prev.filter(d => d.id !== doc.id))}
+                        onClick={() => {
+                          if(confirm("Bron verwijderen?")) setKnowledgeDocs(prev => prev.filter(d => d.id !== doc.id))
+                        }}
                         className="text-[9px] text-red-400 font-bold hover:text-red-600 transition-colors uppercase tracking-widest"
                       >
                         <i className="fas fa-trash mr-1"></i> Verwijderen
                       </button>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-8 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                  <h6 className="text-[10px] font-black text-orange-800 uppercase mb-2 flex items-center gap-2">
-                    <i className="fas fa-info-circle"></i> Hoe werkt RAG?
-                  </h6>
-                  <p className="text-[10px] text-orange-700 leading-relaxed">
-                    Kopieer tekst uit jullie eigen architectuurplannen of migratie-documenten hiernaartoe. De AI "leest" deze documenten eerst voordat hij je vraag beantwoordt. Dit garandeert dat het advies past binnen de specifieke kaders van Lestel.
-                  </p>
                 </div>
               </div>
             )}
