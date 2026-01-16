@@ -23,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Gemini 2.5 Flash AI</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini 3 Flash AI</span>
       </div>
       <button 
         onClick={onExport}
@@ -107,9 +107,10 @@ export default function App() {
 
   const getChat = () => {
     if (chatRef.current) return chatRef.current;
+    // Gebruik process.env.API_KEY zoals vereist door de SDK richtlijnen
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     chatRef.current = ai.chats.create({
-      model: 'gemini-2.5-flash-preview',
+      model: 'gemini-3-flash-preview', // Stabieler en sneller model voor teksttaken
       config: {
         systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je bent expert in de transitie van SAP BW naar Microsoft Azure Fabric.
 Je helpt bij: 1. BW Analyse, 2. Ingestie naar OneLake, 3. Medallion Modellering, 4. AI/ML, 5. Governance, 6. Operations.
@@ -128,18 +129,20 @@ Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering
   const handleSendMessage = async () => {
     if (!userInput.trim() || isTyping) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: userInput };
+    const currentInput = userInput;
+    const userMsg: ChatMessage = { role: 'user', content: currentInput };
     setChatHistory(prev => [...prev, userMsg]);
     setUserInput('');
     setIsTyping(true);
 
     try {
       const chat = getChat();
-      const result = await chat.sendMessage({ message: userInput });
-      setChatHistory(prev => [...prev, { role: 'model', content: result.text || "Geen reactie ontvangen." }]);
+      const response = await chat.sendMessage({ message: currentInput });
+      const text = response.text;
+      setChatHistory(prev => [...prev, { role: 'model', content: text || "Geen reactie ontvangen." }]);
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Er ging iets mis bij het ophalen van het advies. Controleer de verbinding." }]);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Er ging iets mis bij het ophalen van het advies. Probeer het later nog eens." }]);
     } finally {
       setIsTyping(false);
     }
@@ -243,7 +246,7 @@ Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering
               {isTyping && (
                 <div className="flex gap-2 items-center text-[10px] text-slate-400 px-4 animate-pulse">
                   <i className="fas fa-circle-notch fa-spin text-blue-400"></i>
-                  <span>Flash AI analyseert...</span>
+                  <span>Architect denkt na...</span>
                 </div>
               )}
             </div>
@@ -255,7 +258,7 @@ Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Stel je vraag..."
+                  placeholder="Typ je bericht..."
                   className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
                   disabled={isTyping}
                 />
