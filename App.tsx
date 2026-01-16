@@ -23,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Gemini 3 Flash AI</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini 2.5 Flash AI</span>
       </div>
       <button 
         onClick={onExport}
@@ -107,14 +107,13 @@ export default function App() {
 
   const getChat = () => {
     if (chatRef.current) return chatRef.current;
-    // Gebruik process.env.API_KEY zoals vereist door de SDK richtlijnen
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     chatRef.current = ai.chats.create({
-      model: 'gemini-3-flash-preview', // Stabieler en sneller model voor teksttaken
+      model: 'gemini-2.5-flash',
       config: {
         systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je bent expert in de transitie van SAP BW naar Microsoft Azure Fabric.
 Je helpt bij: 1. BW Analyse, 2. Ingestie naar OneLake, 3. Medallion Modellering, 4. AI/ML, 5. Governance, 6. Operations.
-Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering en BIO-richtlijnen.`,
+Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering en BIO-richtlijnen. Geef concrete adviezen over SAP ODP, Fabric Lakehouses en Data Pipelines.`,
       },
     });
     return chatRef.current;
@@ -142,7 +141,7 @@ Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering
       setChatHistory(prev => [...prev, { role: 'model', content: text || "Geen reactie ontvangen." }]);
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Er ging iets mis bij het ophalen van het advies. Probeer het later nog eens." }]);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Er ging iets mis bij het ophalen van het advies. Controleer of het model 'gemini-2.5-flash' beschikbaar is voor je API key of probeer het later nog eens." }]);
     } finally {
       setIsTyping(false);
     }
@@ -224,7 +223,7 @@ Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
             <div className="bg-slate-900 py-5 px-8 flex items-center gap-3">
               <i className="fas fa-robot text-blue-400"></i>
-              <h2 className="text-white text-xs font-black uppercase tracking-widest">Architect Chat</h2>
+              <h2 className="text-white text-xs font-black uppercase tracking-widest">Architect Chat (2.5 Flash)</h2>
             </div>
             
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
