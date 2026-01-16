@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ArchitectureNode, ChatMessage, KnowledgeDoc } from './types';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChatMessage } from './types';
 import html2canvas from 'html2canvas';
 import { GoogleGenAI } from "@google/genai";
 
@@ -23,7 +23,7 @@ const Header: React.FC<{ onExport: () => void; isExporting: boolean }> = ({ onEx
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           BIO & AVG Compliant
         </span>
-        <span className="text-[10px] text-gray-400 font-medium">Gemini 2.5 Flash AI (Licht & Snel)</span>
+        <span className="text-[10px] text-gray-400 font-medium">Gemini 2.5 Flash AI</span>
       </div>
       <button 
         onClick={onExport}
@@ -97,65 +97,23 @@ const TimelineStep: React.FC<{
 
 export default function App() {
   const [activeStepId, setActiveStepId] = useState<number | null>(1);
-  const [activeTab, setActiveTab] = useState<'chat' | 'knowledge'>('chat');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [useSearch, setUseSearch] = useState(false);
-  
-  // --- Persistent State (Our 'Database') ---
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('lestel_chat_history');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(() => {
-    const saved = localStorage.getItem('lestel_knowledge_base');
-    const defaultDoc = [{ 
-      id: '1', 
-      title: 'Lestel Naming Conventions', 
-      content: 'Alle Fabric Workspaces moeten beginnen met "LSTL-". Lakehouses gebruiken de suffix "_LH". Bronze data is altijd Raw Parquet. Silver data is Delta format.', 
-      isActive: true 
-    }];
-    return saved ? JSON.parse(saved) : defaultDoc;
-  });
-
-  const [userInput, setUserInput] = useState('');
-  const [isAddingKnowledge, setIsAddingKnowledge] = useState(false);
-  const [newDocTitle, setNewDocTitle] = useState('');
-  const [newDocContent, setNewDocContent] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
 
-  // Auto-save to LocalStorage
-  useEffect(() => {
-    localStorage.setItem('lestel_chat_history', JSON.stringify(chatHistory));
-  }, [chatHistory]);
-
-  useEffect(() => {
-    localStorage.setItem('lestel_knowledge_base', JSON.stringify(knowledgeDocs));
-  }, [knowledgeDocs]);
-
   const getChat = () => {
     if (chatRef.current) return chatRef.current;
-    
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     chatRef.current = ai.chats.create({
-      model: 'gemini-2.5-flash-preview', // Snel en efficiënt model
+      model: 'gemini-2.5-flash-preview',
       config: {
-        systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je bent een expert in de transitie van SAP BW naar Microsoft Azure Fabric.
-
-HET PROCES:
-Je helpt gebruikers bij elke stap van de migratie: 
-1. BW Analyse, 2. Ingestie, 3. Medallion Modellering, 4. AI/ML, 5. Governance, 6. Operations.
-
-RAG & KENNIS:
-- Gebruik ALTIJD de actieve bronnen uit de Knowledge Base als primaire waarheid.
-- Citeer je bronnen.
-- Sla alle belangrijke architectuurbesluiten op in je antwoorden.
-
-TONE-OF-VOICE:
-Technisch, direct, behulpzaam en altijd conform BIO/AVG richtlijnen.`,
+        systemInstruction: `Je bent de "Lestel Architecture Bot", een Senior Solution Architect. Je bent expert in de transitie van SAP BW naar Microsoft Azure Fabric.
+Je helpt bij: 1. BW Analyse, 2. Ingestie naar OneLake, 3. Medallion Modellering, 4. AI/ML, 5. Governance, 6. Operations.
+Houd je antwoorden professioneel, Nederlands en gericht op technische uitvoering en BIO-richtlijnen.`,
       },
     });
     return chatRef.current;
@@ -170,11 +128,6 @@ Technisch, direct, behulpzaam en altijd conform BIO/AVG richtlijnen.`,
   const handleSendMessage = async () => {
     if (!userInput.trim() || isTyping) return;
 
-    const activeDocs = knowledgeDocs.filter(d => d.isActive).map(d => `BRON [${d.title}]: ${d.content}`).join('\n\n');
-    const promptWithContext = activeDocs 
-      ? `BRONNEN:\n${activeDocs}\n\nVRAAG:\n${userInput}`
-      : userInput;
-
     const userMsg: ChatMessage = { role: 'user', content: userInput };
     setChatHistory(prev => [...prev, userMsg]);
     setUserInput('');
@@ -182,43 +135,13 @@ Technisch, direct, behulpzaam en altijd conform BIO/AVG richtlijnen.`,
 
     try {
       const chat = getChat();
-      const options: any = {};
-      if (useSearch) {
-        options.tools = [{ googleSearch: {} }];
-      }
-
-      const result = await chat.sendMessage({ message: promptWithContext });
-      
-      const modelMsg: ChatMessage = { role: 'model', content: result.text || "Geen reactie ontvangen." };
-      setChatHistory(prev => [...prev, modelMsg]);
+      const result = await chat.sendMessage({ message: userInput });
+      setChatHistory(prev => [...prev, { role: 'model', content: result.text || "Geen reactie ontvangen." }]);
     } catch (error: any) {
       console.error("Gemini Error:", error);
-      setChatHistory(prev => [...prev, { role: 'model', content: "Oeps! Er ging iets mis. Controleer je internetverbinding." }]);
+      setChatHistory(prev => [...prev, { role: 'model', content: "Er ging iets mis bij het ophalen van het advies. Controleer de verbinding." }]);
     } finally {
       setIsTyping(false);
-    }
-  };
-
-  const clearChat = () => {
-    if (confirm("Weet je zeker dat je de chat-historie wilt wissen uit de 'database'?")) {
-      setChatHistory([]);
-      localStorage.removeItem('lestel_chat_history');
-    }
-  };
-
-  const handleSaveKnowledge = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newDocTitle.trim() && newDocContent.trim()) {
-      const newDoc: KnowledgeDoc = {
-        id: Date.now().toString(),
-        title: newDocTitle,
-        content: newDocContent,
-        isActive: true
-      };
-      setKnowledgeDocs(prev => [...prev, newDoc]);
-      setNewDocTitle('');
-      setNewDocContent('');
-      setIsAddingKnowledge(false);
     }
   };
 
@@ -246,255 +169,105 @@ Technisch, direct, behulpzaam en altijd conform BIO/AVG richtlijnen.`,
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header onExport={handleExport} isExporting={isExporting} />
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1600px] mx-auto w-full">
+        {/* Visualisatie Kolom */}
         <div className="lg:col-span-8 space-y-8" id="architecture-plaat">
-          {/* Top Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TimelineStep 
-              number={1} 
-              title="BW Bronnen" 
-              owner="Technisch team"
-              icon="fa-search"
-              colorClass="bg-blue-600"
-              description="Analyse en inventarisatie van legacy systemen."
-              milestones={["Mapping", "Kwaliteitschecks"]}
-              isActive={activeStepId === 1}
-              isExporting={isExporting}
-              onClick={() => setActiveStepId(1)}
-              extraInfo={<p className="text-[11px] text-gray-500">Focus op ODP extractors en Delta-mechanismen.</p>}
+              number={1} title="BW Bronnen" owner="Technisch team" icon="fa-search" colorClass="bg-blue-600"
+              description="Analyse en inventarisatie van legacy systemen." milestones={["Mapping", "ADSO Checks"]}
+              isActive={activeStepId === 1} isExporting={isExporting} onClick={() => setActiveStepId(1)}
+              extraInfo={<p className="text-[11px] text-gray-500">Focus op ODP extractors en SAP Gateway configuraties.</p>}
             />
             <TimelineStep 
-              number={2} 
-              title="Ontsluiten naar Azure" 
-              owner="Infrastructuur"
-              icon="fa-cloud-arrow-up"
-              colorClass="bg-blue-600"
-              description="Data landing in OneLake (Bronze layer)."
-              milestones={["OneLake", "Security"]}
-              isActive={activeStepId === 2}
-              isExporting={isExporting}
-              onClick={() => setActiveStepId(2)}
-              extraInfo={<p className="text-[11px] text-gray-500">Landing via Fabric Pipelines en Managed Private Endpoints.</p>}
+              number={2} title="Ontsluiten naar Azure" owner="Infrastructuur" icon="fa-cloud-arrow-up" colorClass="bg-blue-600"
+              description="Data landing in OneLake (Bronze layer)." milestones={["OneLake", "Security"]}
+              isActive={activeStepId === 2} isExporting={isExporting} onClick={() => setActiveStepId(2)}
+              extraInfo={<p className="text-[11px] text-gray-500">Landing via Fabric Pipelines en Managed VNet Gateway.</p>}
             />
           </div>
 
-          {/* Medallion Row (Full Width) */}
           <TimelineStep 
-            number={3} 
-            title="Data Modellering (Medallion)" 
-            owner="Data Engineers"
-            icon="fa-sitemap"
-            colorClass="bg-green-600"
-            description="Transformatie naar Silver (Schoon) en Gold (Business)."
-            milestones={["Delta Lake", "Lakehouse"]}
-            isActive={activeStepId === 3}
-            isExporting={isExporting}
-            onClick={() => setActiveStepId(3)}
-            extraInfo={<p className="text-[11px] text-gray-500">Gebruik van dbt of Spark Notebooks voor transformaties.</p>}
+            number={3} title="Data Modellering (Medallion)" owner="Data Engineers" icon="fa-sitemap" colorClass="bg-green-600"
+            description="Transformatie naar Silver (Schoon) en Gold (Business)." milestones={["Delta Lake", "Lakehouse"]}
+            isActive={activeStepId === 3} isExporting={isExporting} onClick={() => setActiveStepId(3)}
+            extraInfo={<p className="text-[11px] text-gray-500">Transformaties middels Spark Notebooks en dbt-fabric.</p>}
           />
 
-          {/* Bottom Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TimelineStep 
-              number={4} 
-              title="Data Science & AI" 
-              owner="Data Scientists"
-              icon="fa-flask"
-              colorClass="bg-purple-600"
-              description="Machine Learning modellen op de Gold layer."
-              milestones={["MLFlow", "Notebooks"]}
-              isActive={activeStepId === 4}
-              isExporting={isExporting}
-              onClick={() => setActiveStepId(4)}
-              extraInfo={<p className="text-[11px] text-gray-500">Predictive analytics direct op de OneLake data.</p>}
+              number={4} title="Data Science & AI" owner="Data Scientists" icon="fa-flask" colorClass="bg-purple-600"
+              description="Machine Learning modellen op de Gold layer." milestones={["MLFlow", "Copilot"]}
+              isActive={activeStepId === 4} isExporting={isExporting} onClick={() => setActiveStepId(4)}
+              extraInfo={<p className="text-[11px] text-gray-500">AI-modellen trainen direct op de Gold Delta Tables.</p>}
             />
             <TimelineStep 
-              number={5} 
-              title="Governance & Purview" 
-              owner="Compliance"
-              icon="fa-shield-halved"
-              colorClass="bg-slate-700"
-              description="Data catalogus en lineage bewaking."
-              milestones={["Lineage", "Classification"]}
-              isActive={activeStepId === 5}
-              isExporting={isExporting}
-              onClick={() => setActiveStepId(5)}
-              extraInfo={<p className="text-[11px] text-gray-500">BIO-compliance via Microsoft Purview scanning.</p>}
+              number={5} title="Governance & Purview" owner="Compliance" icon="fa-shield-halved" colorClass="bg-slate-700"
+              description="Data catalogus en lineage bewaking." milestones={["Lineage", "Purview"]}
+              isActive={activeStepId === 5} isExporting={isExporting} onClick={() => setActiveStepId(5)}
+              extraInfo={<p className="text-[11px] text-gray-500">AVG compliance bewaking en data-classificatie.</p>}
             />
           </div>
 
-          {/* NEW: Step 6 Operations */}
           <TimelineStep 
-            number={6} 
-            title="Operationaliseren & Optimaliseren" 
-            owner="DevOps / Cloud Ops"
-            icon="fa-rocket"
-            colorClass="bg-orange-500"
-            description="Continu monitoren, FinOps beheer en performance tuning."
-            milestones={["Capacity Planning", "Monitoring"]}
-            isActive={activeStepId === 6}
-            isExporting={isExporting}
-            onClick={() => setActiveStepId(6)}
-            extraInfo={<p className="text-[11px] text-gray-500">Beheer van Fabric Capaciteiten en kosten-optimalisatie per tenant.</p>}
+            number={6} title="Operationaliseren & Optimaliseren" owner="DevOps" icon="fa-rocket" colorClass="bg-orange-500"
+            description="Continu monitoren en performance tuning." milestones={["FinOps", "Monitoring"]}
+            isActive={activeStepId === 6} isExporting={isExporting} onClick={() => setActiveStepId(6)}
+            extraInfo={<p className="text-[11px] text-gray-500">Beheer van Fabric Capaciteiten en kostenbewaking.</p>}
           />
         </div>
 
-        {/* Sidebar */}
+        {/* Chat Sidebar */}
         <div className="lg:col-span-4 h-[calc(100vh-140px)] sticky top-[100px] no-print">
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-200 flex flex-col h-full overflow-hidden">
-            {/* Tab Header */}
-            <div className="flex border-b border-gray-100 bg-slate-900">
-              <button 
-                onClick={() => setActiveTab('chat')}
-                className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'chat' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <i className="fas fa-comments mr-2"></i> Architect Chat
-              </button>
-              <button 
-                onClick={() => setActiveTab('knowledge')}
-                className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'knowledge' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <i className="fas fa-book mr-2"></i> Bronnen
-              </button>
+            <div className="bg-slate-900 py-5 px-8 flex items-center gap-3">
+              <i className="fas fa-robot text-blue-400"></i>
+              <h2 className="text-white text-xs font-black uppercase tracking-widest">Architect Chat</h2>
+            </div>
+            
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
+              {chatHistory.length === 0 && (
+                <div className="text-center py-12 px-4 opacity-50">
+                  <i className="fas fa-comments text-4xl text-slate-300 mb-4 block"></i>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">Stel je vraag over de BW naar Azure transitie.</p>
+                </div>
+              )}
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[90%] p-4 rounded-3xl text-xs leading-relaxed ${
+                    msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none shadow-md' : 'bg-white border border-gray-200 text-slate-800 rounded-tl-none shadow-sm'
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex gap-2 items-center text-[10px] text-slate-400 px-4 animate-pulse">
+                  <i className="fas fa-circle-notch fa-spin text-blue-400"></i>
+                  <span>Flash AI analyseert...</span>
+                </div>
+              )}
             </div>
 
-            {activeTab === 'chat' ? (
-              <>
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
-                  <div className="flex justify-between items-center px-2">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-2">
-                      <i className="fas fa-database text-green-500"></i> Lokaal Opgeslagen
-                    </span>
-                    {chatHistory.length > 0 && (
-                      <button onClick={clearChat} className="text-[9px] text-red-400 hover:text-red-600 font-bold">
-                        WIST HISTORIE
-                      </button>
-                    )}
-                  </div>
-                  
-                  {chatHistory.length === 0 && (
-                    <div className="text-center py-12 px-4">
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i className="fas fa-bolt text-blue-600 text-2xl"></i>
-                      </div>
-                      <h4 className="font-bold text-slate-800 tracking-tight text-sm">Gemini 2.5 Flash Architect</h4>
-                      <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">Snel, lichtgewicht en persistent. Elk advies wordt opgeslagen in je lokale database.</p>
-                    </div>
-                  )}
-                  {chatHistory.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[90%] p-4 rounded-3xl text-xs leading-relaxed ${
-                        msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none shadow-md' : 'bg-white border border-gray-200 text-slate-800 rounded-tl-none shadow-sm'
-                      }`}>
-                        {msg.content}
-                      </div>
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex gap-2 items-center text-[10px] text-slate-400 px-4 animate-pulse">
-                      <i className="fas fa-microchip text-blue-400"></i>
-                      <span>Denkt na in 'Flash' tempo...</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-6 bg-white border-t border-slate-100">
-                  <div className="flex items-center gap-4 mb-4">
-                    <button 
-                      onClick={() => setUseSearch(!useSearch)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${useSearch ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'}`}
-                    >
-                      <i className={`fas ${useSearch ? 'fa-globe' : 'fa-circle-dot opacity-30'}`}></i>
-                      Live Web Search {useSearch ? 'AAN' : 'UIT'}
-                    </button>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      <i className="fas fa-link mr-1"></i> {knowledgeDocs.filter(d => d.isActive).length} Bronnen
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Stel een vraag over de transitie..."
-                      className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
-                      disabled={isTyping}
-                    />
-                    <button 
-                      onClick={handleSendMessage}
-                      disabled={!userInput.trim() || isTyping}
-                      className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-xl shadow-lg disabled:opacity-50 transition-all hover:bg-blue-700 active:scale-95"
-                    >
-                      <i className="fas fa-paper-plane"></i>
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Kennis Database</h4>
-                  <button 
-                    onClick={() => setIsAddingKnowledge(!isAddingKnowledge)}
-                    className={`p-2 rounded-lg transition-all ${isAddingKnowledge ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                  >
-                    <i className={`fas ${isAddingKnowledge ? 'fa-times' : 'fa-plus'}`}></i>
-                  </button>
-                </div>
-                
-                {isAddingKnowledge && (
-                  <form onSubmit={handleSaveKnowledge} className="mb-8 p-4 bg-blue-50 rounded-2xl border border-blue-100 space-y-3 animate-in slide-in-from-top-4 duration-300">
-                    <h5 className="text-[10px] font-black text-blue-800 uppercase">Nieuwe Bron</h5>
-                    <input 
-                      autoFocus
-                      type="text" 
-                      placeholder="Titel document"
-                      value={newDocTitle}
-                      onChange={(e) => setNewDocTitle(e.target.value)}
-                      className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <textarea 
-                      placeholder="Plak hier de inhoud van je document..."
-                      value={newDocContent}
-                      onChange={(e) => setNewDocContent(e.target.value)}
-                      className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!newDocTitle || !newDocContent}
-                      className="w-full bg-blue-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 shadow-md active:scale-95 transition-all"
-                    >
-                      Bron Opslaan in Database
-                    </button>
-                  </form>
-                )}
-
-                <div className="space-y-3">
-                  {knowledgeDocs.map(doc => (
-                    <div key={doc.id} className={`p-4 rounded-2xl border-2 transition-all ${doc.isActive ? 'border-blue-100 bg-blue-50/30 shadow-sm' : 'border-slate-50 opacity-60'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <h5 className="text-xs font-bold text-slate-900 line-clamp-1 flex-1 pr-2">{doc.title}</h5>
-                        <input 
-                          type="checkbox" 
-                          checked={doc.isActive}
-                          onChange={() => setKnowledgeDocs(prev => prev.map(d => d.id === doc.id ? {...d, isActive: !d.isActive} : d))}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                        />
-                      </div>
-                      <p className="text-[10px] text-slate-600 line-clamp-3 leading-relaxed mb-3">{doc.content}</p>
-                      <button 
-                        onClick={() => {
-                          if(confirm("Bron verwijderen?")) setKnowledgeDocs(prev => prev.filter(d => d.id !== doc.id))
-                        }}
-                        className="text-[9px] text-red-400 font-bold hover:text-red-600 transition-colors uppercase tracking-widest"
-                      >
-                        <i className="fas fa-trash mr-1"></i> Verwijderen
-                      </button>
-                    </div>
-                  ))}
-                </div>
+            <div className="p-6 bg-white border-t border-slate-100">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Stel je vraag..."
+                  className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-xs focus:ring-2 focus:ring-blue-500 outline-none pr-12 shadow-inner"
+                  disabled={isTyping}
+                />
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={!userInput.trim() || isTyping}
+                  className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-xl shadow-lg disabled:opacity-50 transition-all hover:bg-blue-700 active:scale-95"
+                >
+                  <i className="fas fa-paper-plane"></i>
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </main>
